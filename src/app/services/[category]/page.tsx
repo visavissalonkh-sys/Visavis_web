@@ -89,7 +89,7 @@ export default async function CategoryPage({
             <p className="text-sm text-fg-muted">{service.description}</p>
             <div className="flex items-center justify-between border-t border-border pt-4">
               <span className="text-xs text-fg-subtle">{service.durationMinutes} хв</span>
-              <Button href="/booking" size="md">
+              <Button href={`/booking?service=${service.slug}`} size="md">
                 Записатися
               </Button>
             </div>

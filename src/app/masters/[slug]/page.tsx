@@ -98,7 +98,7 @@ export default async function MasterPage({
           </div>
 
           <div className="flex flex-wrap gap-3 pt-2">
-            <Button href="/booking">Записатися до {master.name.split(" ")[0]}</Button>
+            <Button href={`/booking?master=${master.slug}`}>Записатися до {master.name.split(" ")[0]}</Button>
           </div>
         </div>
       </div>
