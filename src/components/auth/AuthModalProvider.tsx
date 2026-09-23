@@ -7,6 +7,8 @@ import { AuthModal, type SessionUser } from "@/components/auth/AuthModal";
 type AuthModalContextValue = {
   openAuthModal: (onSuccess?: (user: SessionUser) => void) => void;
   closeAuthModal: () => void;
+  /** Bumps every successful login — components can re-fetch /api/auth/me when this changes. */
+  authVersion: number;
 };
 
 const AuthModalContext = createContext<AuthModalContextValue | null>(null);
@@ -17,19 +19,27 @@ export function useAuthModal(): AuthModalContextValue {
   return ctx;
 }
 
-function AuthRequiredQueryHandler({ onTrigger }: { onTrigger: () => void }) {
+function AuthRequiredQueryHandler() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { openAuthModal } = useAuthModal();
 
   useEffect(() => {
     if (searchParams.get("auth") !== "required") return;
-    onTrigger();
+
+    const next = searchParams.get("next");
+    // Open the modal and only THEN navigate — on success, not before. Routing
+    // to `next` immediately would hit proxy.ts while still unauthenticated
+    // and bounce straight back here in a loop.
+    openAuthModal(() => {
+      if (next) router.push(next);
+    });
+
     const params = new URLSearchParams(searchParams);
-    const next = params.get("next");
     params.delete("auth");
     params.delete("next");
     const query = params.toString();
-    router.replace(next && next !== "" ? next : window.location.pathname + (query ? `?${query}` : ""));
+    router.replace(window.location.pathname + (query ? `?${query}` : ""));
     // Intentionally runs once on mount: this component lives once at the app
     // root and only needs to react to the `?auth=required` link a redirect
     // (e.g. from proxy.ts) lands the user on.
@@ -41,6 +51,7 @@ function AuthRequiredQueryHandler({ onTrigger }: { onTrigger: () => void }) {
 
 export function AuthModalProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [authVersion, setAuthVersion] = useState(0);
   const onSuccessRef = useRef<((user: SessionUser) => void) | undefined>(undefined);
   const router = useRouter();
 
@@ -52,16 +63,17 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
   const closeAuthModal = useCallback(() => setIsOpen(false), []);
 
   return (
-    <AuthModalContext.Provider value={{ openAuthModal, closeAuthModal }}>
+    <AuthModalContext.Provider value={{ openAuthModal, closeAuthModal, authVersion }}>
       {children}
       <Suspense fallback={null}>
-        <AuthRequiredQueryHandler onTrigger={() => setIsOpen(true)} />
+        <AuthRequiredQueryHandler />
       </Suspense>
       {isOpen && (
         <AuthModal
           onClose={closeAuthModal}
           onAuthenticated={(user) => {
             setIsOpen(false);
+            setAuthVersion((v) => v + 1);
             onSuccessRef.current?.(user);
             router.refresh();
           }}

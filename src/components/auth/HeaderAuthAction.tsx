@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuthModal } from "@/components/auth/AuthModalProvider";
 
-type MeResponse = { user: { name: string | null } | null };
+type MeResponse = { user: { name: string | null; role: "client" | "master" | "admin" } | null };
 
 export function HeaderAuthAction({ className }: { className?: string }) {
-  const { openAuthModal } = useAuthModal();
+  const { openAuthModal, authVersion } = useAuthModal();
   const [user, setUser] = useState<MeResponse["user"] | undefined>(undefined);
 
   useEffect(() => {
@@ -23,15 +23,16 @@ export function HeaderAuthAction({ className }: { className?: string }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [authVersion]);
 
   if (user === undefined) {
     return <div className={className} aria-hidden />;
   }
 
   if (user) {
+    const href = user.role === "master" ? "/master" : "/account";
     return (
-      <Link href="/account" className={`text-sm text-fg-muted transition-colors hover:text-fg ${className ?? ""}`}>
+      <Link href={href} className={`text-sm text-fg-muted transition-colors hover:text-fg ${className ?? ""}`}>
         {user.name ? user.name.split(" ")[0] : "Кабінет"}
       </Link>
     );

@@ -10,16 +10,20 @@ export async function proxy(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await verifySessionToken(token) : null;
 
-  if (session) {
-    return NextResponse.next();
+  if (!session) {
+    const url = new URL("/", request.url);
+    url.searchParams.set("auth", "required");
+    url.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);
+    return NextResponse.redirect(url);
   }
 
-  const url = new URL("/", request.url);
-  url.searchParams.set("auth", "required");
-  url.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);
-  return NextResponse.redirect(url);
+  if (request.nextUrl.pathname.startsWith("/master") && session.role !== "master") {
+    return NextResponse.redirect(new URL("/account", request.url));
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/account/:path*", "/booking/success"],
+  matcher: ["/account/:path*", "/master/:path*", "/booking/success"],
 };
