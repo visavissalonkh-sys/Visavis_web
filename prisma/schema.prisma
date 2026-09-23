@@ -1,0 +1,284 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  client
+  master
+  admin
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  completed
+  cancelled
+  no_show
+}
+
+// Payment integration is out of scope for MVP — this only reserves the shape
+// so a future Stripe/LiqPay/Monobank integration doesn't require a schema migration.
+enum PaymentStatus {
+  not_required
+  unpaid
+  paid
+  refunded
+}
+
+enum BookingSource {
+  web
+  bot
+}
+
+enum AvailabilityOverrideType {
+  day_off
+  extra_slot
+  blocked_range
+}
+
+enum NotificationType {
+  confirmation
+  reminder_24h
+  reminder_2h
+  cancelled
+}
+
+// ---------------------------------------------------------------------------
+// Core
+// ---------------------------------------------------------------------------
+
+model User {
+  id               String   @id @default(cuid())
+  phone            String   @unique
+  telegramId       BigInt?  @unique @map("telegram_id")
+  telegramUsername String?  @map("telegram_username")
+  name             String?
+  role             UserRole @default(client)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  master   Master?
+  bookings Booking[]
+  reviews  Review[]
+
+  @@map("users")
+}
+
+model Location {
+  id           String   @id @default(cuid())
+  name         String
+  address      String
+  phone        String
+  workingHours Json     @map("working_hours")
+  photoUrls    String[] @map("photo_urls")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  masterLocations MasterLocation[]
+  bookings        Booking[]
+  reviews         Review[]
+
+  @@map("locations")
+}
+
+model Service {
+  id              String   @id @default(cuid())
+  category        String
+  name            String
+  description     String
+  durationMinutes Int      @map("duration_minutes")
+  priceFrom       Decimal  @map("price_from") @db.Decimal(10, 2)
+  priceTo         Decimal? @map("price_to") @db.Decimal(10, 2)
+  photoUrls       String[] @map("photo_urls")
+  seoSlug         String   @unique @map("seo_slug")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  bookings          Booking[]
+  masterSpecialties MasterSpecialty[]
+
+  @@index([category])
+  @@map("services")
+}
+
+model Master {
+  id           String   @id @default(cuid())
+  userId       String   @unique @map("user_id")
+  name         String
+  bio          String?
+  avatarUrl    String?  @map("avatar_url")
+  instagramUrl String?  @map("instagram_url")
+  ratingCached Decimal  @default(0) @map("rating_cached") @db.Decimal(2, 1)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user                  User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialties           MasterSpecialty[]
+  masterLocations       MasterLocation[]
+  availabilityOverrides MasterAvailabilityOverride[]
+  bookings              Booking[]
+  reviews               Review[]
+
+  @@map("masters")
+}
+
+// Explicit join table (instead of an implicit m2m) so a master's specialties
+// can carry future metadata (e.g. price overrides per master) without a migration.
+model MasterSpecialty {
+  masterId  String @map("master_id")
+  serviceId String @map("service_id")
+
+  master  Master  @relation(fields: [masterId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([masterId, serviceId])
+  @@map("master_specialties")
+}
+
+// Recurring weekly schedule: a master can work at several locations on different days.
+model MasterLocation {
+  id         String @id @default(cuid())
+  masterId   String @map("master_id")
+  locationId String @map("location_id")
+  weekday    Int // 0 = Sunday .. 6 = Saturday
+  timeFrom   String @map("time_from") // "10:00"
+  timeTo     String @map("time_to") // "19:00"
+
+  master   Master   @relation(fields: [masterId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([masterId, locationId, weekday])
+  @@index([locationId, weekday])
+  @@map("master_locations")
+}
+
+// One-off changes to the recurring schedule — vacation, an extra slot, a blocked
+// window. Set by the admin (who takes priority) or by the master themself.
+model MasterAvailabilityOverride {
+  id        String                   @id @default(cuid())
+  masterId  String                   @map("master_id")
+  date      DateTime                 @db.Date
+  type      AvailabilityOverrideType
+  timeFrom  String?                  @map("time_from")
+  timeTo    String?                  @map("time_to")
+  note      String?
+  createdBy UserRole                 @default(master) @map("created_by")
+  createdAt DateTime                 @default(now()) @map("created_at")
+
+  master Master @relation(fields: [masterId], references: [id], onDelete: Cascade)
+
+  @@index([masterId, date])
+  @@map("master_availability_overrides")
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  clientId      String        @map("client_id")
+  masterId      String        @map("master_id")
+  locationId    String        @map("location_id")
+  serviceId     String        @map("service_id")
+  date          DateTime      @db.Date
+  timeFrom      String        @map("time_from")
+  timeTo        String        @map("time_to")
+  status        BookingStatus @default(pending)
+  paymentStatus PaymentStatus @default(not_required) @map("payment_status")
+  createdVia    BookingSource @default(web) @map("created_via")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  client   User     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  master   Master   @relation(fields: [masterId], references: [id], onDelete: Restrict)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  service  Service  @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  review        Review?
+  notifications NotificationLog[]
+  transaction   Transaction?
+
+  @@index([masterId, date])
+  @@index([locationId, date])
+  @@index([clientId])
+  @@map("bookings")
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  clientId    String   @map("client_id")
+  masterId    String?  @map("master_id")
+  locationId  String   @map("location_id")
+  bookingId   String?  @unique @map("booking_id")
+  rating      Int
+  text        String
+  photoUrls   String[] @map("photo_urls")
+  isModerated Boolean  @default(false) @map("is_moderated")
+  isPublished Boolean  @default(false) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  client   User     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  master   Master?  @relation(fields: [masterId], references: [id], onDelete: SetNull)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  booking  Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([masterId])
+  @@index([isPublished])
+  @@map("reviews")
+}
+
+// Dedup log so the reminder scheduler (Redis-backed queue) never double-sends.
+model NotificationLog {
+  id        String           @id @default(cuid())
+  bookingId String           @map("booking_id")
+  type      NotificationType
+  sentAt    DateTime         @default(now()) @map("sent_at")
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, type])
+  @@map("notifications_log")
+}
+
+// Placeholder for future online-payment integration (Stripe / LiqPay / Monobank).
+// No UI or provider wiring in MVP — this only reserves the data shape.
+model Transaction {
+  id         String   @id @default(cuid())
+  bookingId  String   @unique @map("booking_id")
+  amount     Decimal  @db.Decimal(10, 2)
+  currency   String   @default("UAH")
+  provider   String?
+  externalId String?  @map("external_id")
+  status     String   @default("pending")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}
+
+// Audit trail for admin actions (price/schedule/role changes) — required ahead
+// of the planned security pentest.
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String   @map("actor_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@map("admin_audit_log")
+}
