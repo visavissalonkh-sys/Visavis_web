@@ -83,6 +83,7 @@ model User {
 
 model Location {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug         String   @unique
   name         String
   address      String
   phone        String
@@ -123,6 +124,7 @@ model Service {
 model Master {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId       String   @unique @map("user_id") @db.Uuid
+  slug         String   @unique
   name         String
   bio          String?
   avatarUrl    String?  @map("avatar_url")
