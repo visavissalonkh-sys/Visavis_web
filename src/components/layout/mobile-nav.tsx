@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { HeaderAuthAction } from "@/components/auth/HeaderAuthAction";
 
 const links = [
   { href: "/services", label: "Послуги" },
@@ -48,9 +49,12 @@ export function MobileNav() {
               </Link>
             ))}
           </nav>
-          <Button href="/booking" size="lg" onClick={() => setOpen(false)}>
-            Записатися
-          </Button>
+          <div className="flex flex-col items-start gap-4">
+            <HeaderAuthAction className="text-base" />
+            <Button href="/booking" size="lg" onClick={() => setOpen(false)}>
+              Записатися
+            </Button>
+          </div>
         </div>
       ) : null}
     </div>

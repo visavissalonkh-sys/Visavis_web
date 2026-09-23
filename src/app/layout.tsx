@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
+import { AuthModalProvider } from "@/components/auth/AuthModalProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -61,9 +62,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
         />
-        <SiteHeader />
-        <main className="flex-1 pt-20">{children}</main>
-        <SiteFooter />
+        <AuthModalProvider>
+          <SiteHeader />
+          <main className="flex-1 pt-20">{children}</main>
+          <SiteFooter />
+        </AuthModalProvider>
       </body>
     </html>
   );

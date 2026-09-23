@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { HeaderAuthAction } from "@/components/auth/HeaderAuthAction";
 
 const links = [
   { href: "/services", label: "Послуги" },
@@ -30,7 +31,8 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="hidden lg:block">
+        <div className="hidden items-center gap-6 lg:flex">
+          <HeaderAuthAction />
           <Button href="/booking">Записатися</Button>
         </div>
 
