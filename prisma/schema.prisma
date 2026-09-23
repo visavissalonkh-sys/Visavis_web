@@ -8,6 +8,14 @@ datasource db {
 }
 
 // ---------------------------------------------------------------------------
+// IDs are native Postgres UUIDs generated with gen_random_uuid() (built into
+// Postgres 13+, no extension needed) rather than Prisma's client-side cuid().
+// Visavis_bot writes to these same tables directly via SQLAlchemy/asyncpg, so
+// the ID default must live in the database — a client-side default would only
+// apply to inserts made through this Prisma Client.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
 // Enums
 // ---------------------------------------------------------------------------
 
@@ -57,7 +65,7 @@ enum NotificationType {
 // ---------------------------------------------------------------------------
 
 model User {
-  id               String   @id @default(cuid())
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   phone            String   @unique
   telegramId       BigInt?  @unique @map("telegram_id")
   telegramUsername String?  @map("telegram_username")
@@ -74,7 +82,7 @@ model User {
 }
 
 model Location {
-  id           String   @id @default(cuid())
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name         String
   address      String
   phone        String
@@ -92,7 +100,7 @@ model Location {
 }
 
 model Service {
-  id              String   @id @default(cuid())
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   category        String
   name            String
   description     String
@@ -113,8 +121,8 @@ model Service {
 }
 
 model Master {
-  id           String   @id @default(cuid())
-  userId       String   @unique @map("user_id")
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String   @unique @map("user_id") @db.Uuid
   name         String
   bio          String?
   avatarUrl    String?  @map("avatar_url")
@@ -137,8 +145,8 @@ model Master {
 // Explicit join table (instead of an implicit m2m) so a master's specialties
 // can carry future metadata (e.g. price overrides per master) without a migration.
 model MasterSpecialty {
-  masterId  String @map("master_id")
-  serviceId String @map("service_id")
+  masterId  String @map("master_id") @db.Uuid
+  serviceId String @map("service_id") @db.Uuid
 
   master  Master  @relation(fields: [masterId], references: [id], onDelete: Cascade)
   service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
@@ -149,9 +157,9 @@ model MasterSpecialty {
 
 // Recurring weekly schedule: a master can work at several locations on different days.
 model MasterLocation {
-  id         String @id @default(cuid())
-  masterId   String @map("master_id")
-  locationId String @map("location_id")
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  masterId   String @map("master_id") @db.Uuid
+  locationId String @map("location_id") @db.Uuid
   weekday    Int // 0 = Sunday .. 6 = Saturday
   timeFrom   String @map("time_from") // "10:00"
   timeTo     String @map("time_to") // "19:00"
@@ -167,8 +175,8 @@ model MasterLocation {
 // One-off changes to the recurring schedule — vacation, an extra slot, a blocked
 // window. Set by the admin (who takes priority) or by the master themself.
 model MasterAvailabilityOverride {
-  id        String                   @id @default(cuid())
-  masterId  String                   @map("master_id")
+  id        String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  masterId  String                   @map("master_id") @db.Uuid
   date      DateTime                 @db.Date
   type      AvailabilityOverrideType
   timeFrom  String?                  @map("time_from")
@@ -184,11 +192,11 @@ model MasterAvailabilityOverride {
 }
 
 model Booking {
-  id            String        @id @default(cuid())
-  clientId      String        @map("client_id")
-  masterId      String        @map("master_id")
-  locationId    String        @map("location_id")
-  serviceId     String        @map("service_id")
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId      String        @map("client_id") @db.Uuid
+  masterId      String        @map("master_id") @db.Uuid
+  locationId    String        @map("location_id") @db.Uuid
+  serviceId     String        @map("service_id") @db.Uuid
   date          DateTime      @db.Date
   timeFrom      String        @map("time_from")
   timeTo        String        @map("time_to")
@@ -214,11 +222,11 @@ model Booking {
 }
 
 model Review {
-  id          String   @id @default(cuid())
-  clientId    String   @map("client_id")
-  masterId    String?  @map("master_id")
-  locationId  String   @map("location_id")
-  bookingId   String?  @unique @map("booking_id")
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId    String   @map("client_id") @db.Uuid
+  masterId    String?  @map("master_id") @db.Uuid
+  locationId  String   @map("location_id") @db.Uuid
+  bookingId   String?  @unique @map("booking_id") @db.Uuid
   rating      Int
   text        String
   photoUrls   String[] @map("photo_urls")
@@ -238,8 +246,8 @@ model Review {
 
 // Dedup log so the reminder scheduler (Redis-backed queue) never double-sends.
 model NotificationLog {
-  id        String           @id @default(cuid())
-  bookingId String           @map("booking_id")
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId String           @map("booking_id") @db.Uuid
   type      NotificationType
   sentAt    DateTime         @default(now()) @map("sent_at")
 
@@ -252,8 +260,8 @@ model NotificationLog {
 // Placeholder for future online-payment integration (Stripe / LiqPay / Monobank).
 // No UI or provider wiring in MVP — this only reserves the data shape.
 model Transaction {
-  id         String   @id @default(cuid())
-  bookingId  String   @unique @map("booking_id")
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId  String   @unique @map("booking_id") @db.Uuid
   amount     Decimal  @db.Decimal(10, 2)
   currency   String   @default("UAH")
   provider   String?
@@ -270,8 +278,8 @@ model Transaction {
 // Audit trail for admin actions (price/schedule/role changes) — required ahead
 // of the planned security pentest.
 model AdminAuditLog {
-  id         String   @id @default(cuid())
-  actorId    String   @map("actor_id")
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId    String   @map("actor_id") @db.Uuid
   action     String
   entityType String   @map("entity_type")
   entityId   String   @map("entity_id")
