@@ -1,5 +1,5 @@
 import { differenceInCalendarMonths } from "date-fns";
-import type { BookingStatus } from "@prisma/client";
+import type { BookingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { SessionPayload } from "@/lib/auth";
 import { formatDateOnly } from "@/lib/booking";
@@ -9,6 +9,7 @@ import { getSalonToday } from "@/lib/timezone";
 export const MIN_HOURS_BEFORE_CANCEL = 2;
 const ACTIVE_STATUSES: BookingStatus[] = ["pending", "confirmed"];
 const RECENT_VISITS_LIMIT = 3;
+export const ACCOUNT_BOOKINGS_PAGE_SIZE = 10;
 
 /** The signed-in user's own row — every /account/* page and API route reads through this. */
 export async function getAccountUser(session: SessionPayload) {
@@ -66,5 +67,94 @@ export async function getDashboardData(user: {
       status: b.status,
       hasReview: b.review !== null,
     })),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Bookings: list (tabbed) + detail
+// ---------------------------------------------------------------------------
+
+export type AccountBookingsTab = "upcoming" | "past";
+
+export type AccountBookingsList = Awaited<ReturnType<typeof getBookingsList>>;
+
+export async function getBookingsList({
+  clientId,
+  tab,
+  page,
+}: {
+  clientId: string;
+  tab: AccountBookingsTab;
+  page: number;
+}) {
+  const today = getSalonToday();
+  const where: Prisma.BookingWhereInput =
+    tab === "upcoming"
+      ? { clientId, status: { in: ACTIVE_STATUSES }, date: { gte: today } }
+      : { clientId, OR: [{ date: { lt: today } }, { status: { notIn: ACTIVE_STATUSES } }] };
+  const orderBy: Prisma.BookingOrderByWithRelationInput[] =
+    tab === "upcoming" ? [{ date: "asc" }, { timeFrom: "asc" }] : [{ date: "desc" }, { timeFrom: "desc" }];
+
+  const [bookings, total] = await Promise.all([
+    prisma.booking.findMany({
+      where,
+      include: { service: true, master: true, review: true },
+      orderBy,
+      skip: (page - 1) * ACCOUNT_BOOKINGS_PAGE_SIZE,
+      take: ACCOUNT_BOOKINGS_PAGE_SIZE,
+    }),
+    prisma.booking.count({ where }),
+  ]);
+
+  return {
+    bookings: bookings.map((b) => ({
+      id: b.id,
+      date: formatDateOnly(b.date),
+      timeFrom: b.timeFrom,
+      status: b.status,
+      serviceName: b.service.name,
+      master: { id: b.masterId, name: b.master.name, avatarUrl: b.master.avatarUrl },
+      hasReview: b.review !== null,
+    })),
+    total,
+    page,
+    pageSize: ACCOUNT_BOOKINGS_PAGE_SIZE,
+    totalPages: Math.max(1, Math.ceil(total / ACCOUNT_BOOKINGS_PAGE_SIZE)),
+  };
+}
+
+/** IDOR guard: a booking a client can view/act on must be theirs. */
+export async function getOwnedAccountBooking(clientId: string, bookingId: string) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { service: true, master: true, location: true, review: true },
+  });
+  if (!booking || booking.clientId !== clientId) return null;
+  return booking;
+}
+
+export type AccountBookingDetail = Awaited<ReturnType<typeof getBookingDetail>>;
+
+export async function getBookingDetail(clientId: string, bookingId: string) {
+  const booking = await getOwnedAccountBooking(clientId, bookingId);
+  if (!booking) return null;
+
+  const hoursUntilVisit =
+    (visitStartsAt(booking.date, booking.timeFrom).getTime() - Date.now()) / (1000 * 60 * 60);
+
+  return {
+    id: booking.id,
+    date: formatDateOnly(booking.date),
+    timeFrom: booking.timeFrom,
+    status: booking.status,
+    comment: booking.comment,
+    serviceId: booking.serviceId,
+    serviceName: booking.service.name,
+    durationMinutes: booking.service.durationMinutes,
+    master: { id: booking.masterId, name: booking.master.name, avatarUrl: booking.master.avatarUrl },
+    locationAddress: booking.location.address,
+    hasReview: booking.review !== null,
+    canCancel:
+      ACTIVE_STATUSES.includes(booking.status) && hoursUntilVisit > MIN_HOURS_BEFORE_CANCEL,
   };
 }
