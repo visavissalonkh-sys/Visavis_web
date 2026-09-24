@@ -3,8 +3,6 @@ import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
-import { masters } from "@/lib/data/masters";
-import { categories } from "@/lib/data/services";
 
 function initials(name: string) {
   return name
@@ -15,8 +13,17 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-export function FeaturedMasters() {
-  const featured = masters.slice(0, 4);
+export type FeaturedMaster = {
+  slug: string;
+  name: string;
+  avatarUrl: string | null;
+  rating: number;
+  reviewCount: number;
+  primaryCategoryName: string | null;
+};
+
+export function FeaturedMasters({ masters }: { masters: FeaturedMaster[] }) {
+  if (masters.length === 0) return null;
 
   return (
     <section className="border-t border-border py-24 sm:py-32">
@@ -33,39 +40,37 @@ export function FeaturedMasters() {
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {featured.map((master, index) => {
-            const specialty = categories.find(
-              (category) => category.slug === master.specialtySlugs[0],
-            );
+          {masters.map((master, index) => (
+            <Reveal key={master.slug} delay={index * 60}>
+              <Link
+                href={`/masters/${master.slug}`}
+                className="group flex h-full flex-col gap-6 rounded-3xl border border-border bg-surface p-7 transition-colors duration-300 hover:border-accent-border hover:bg-surface-2"
+              >
+                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
+                  {master.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- Cloudinary URL
+                    <img src={master.avatarUrl} alt={master.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="font-display text-lg text-accent">{initials(master.name)}</span>
+                  )}
+                </div>
 
-            return (
-              <Reveal key={master.slug} delay={index * 60}>
-                <Link
-                  href={`/masters/${master.slug}`}
-                  className="group flex h-full flex-col gap-6 rounded-3xl border border-border bg-surface p-7 transition-colors duration-300 hover:border-accent-border hover:bg-surface-2"
-                >
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-accent-border bg-accent-soft font-display text-lg text-accent">
-                    {initials(master.name)}
-                  </div>
+                <div className="flex flex-1 flex-col gap-2">
+                  <h3 className="font-display text-xl text-fg">{master.name}</h3>
+                  {master.primaryCategoryName ? (
+                    <span className="mt-1 w-fit rounded-full border border-border-strong px-3 py-1 text-xs text-fg-subtle">
+                      {master.primaryCategoryName}
+                    </span>
+                  ) : null}
+                </div>
 
-                  <div className="flex flex-1 flex-col gap-2">
-                    <h3 className="font-display text-xl text-fg">{master.name}</h3>
-                    <p className="text-sm text-fg-muted">{master.role}</p>
-                    {specialty ? (
-                      <span className="mt-1 w-fit rounded-full border border-border-strong px-3 py-1 text-xs text-fg-subtle">
-                        {specialty.name}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-border pt-4 text-sm">
-                    <span className="text-fg">★ {master.rating.toFixed(1)}</span>
-                    <span className="text-fg-subtle">{master.reviewsCount} відгуків</span>
-                  </div>
-                </Link>
-              </Reveal>
-            );
-          })}
+                <div className="flex items-center justify-between border-t border-border pt-4 text-sm">
+                  <span className="text-fg">★ {master.rating.toFixed(1)}</span>
+                  <span className="text-fg-subtle">{master.reviewCount} відгуків</span>
+                </div>
+              </Link>
+            </Reveal>
+          ))}
         </div>
       </Container>
     </section>

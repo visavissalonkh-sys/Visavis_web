@@ -2,14 +2,31 @@ import type { Metadata } from "next";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { locations } from "@/lib/data/locations";
-import { masters } from "@/lib/data/masters";
+import { prisma } from "@/lib/prisma";
+
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Філії",
   description: "Філії Visavis у Харкові: адреси, графік роботи та контактні телефони.",
 };
 
-export default function LocationsPage() {
+export default async function LocationsPage() {
+  const masterLocations = await prisma.masterLocation.findMany({
+    distinct: ["masterId", "locationId"],
+    include: { master: true, location: true },
+  });
+
+  const teamBySlug = new Map<string, { slug: string; name: string }[]>();
+  for (const ml of masterLocations) {
+    const key = ml.location.slug;
+    const list = teamBySlug.get(key) ?? [];
+    if (!list.some((m) => m.slug === ml.master.slug)) {
+      list.push({ slug: ml.master.slug, name: ml.master.name });
+    }
+    teamBySlug.set(key, list);
+  }
+
   return (
     <Container className="flex flex-col gap-14 py-20">
       <SectionHeading
@@ -20,7 +37,7 @@ export default function LocationsPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {locations.map((location) => {
-          const team = masters.filter((m) => m.locationSlugs.includes(location.slug));
+          const team = teamBySlug.get(location.slug) ?? [];
 
           return (
             <div

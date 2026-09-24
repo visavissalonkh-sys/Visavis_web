@@ -483,3 +483,55 @@ export async function getWeekSchedule(
 
   return days;
 }
+
+// ---------------------------------------------------------------------------
+// Profile
+// ---------------------------------------------------------------------------
+
+export async function getMasterProfile(masterId: string) {
+  const [master, allServices, specialties] = await Promise.all([
+    prisma.master.findUniqueOrThrow({ where: { id: masterId } }),
+    prisma.service.findMany({ where: { isActive: true }, orderBy: [{ category: "asc" }, { name: "asc" }] }),
+    prisma.masterSpecialty.findMany({ where: { masterId } }),
+  ]);
+
+  const specialtyServiceIds = new Set(specialties.map((s) => s.serviceId));
+
+  return {
+    master: {
+      slug: master.slug,
+      name: master.name,
+      bio: master.bio,
+      avatarUrl: master.avatarUrl,
+      instagramUrl: master.instagramUrl,
+      rating: Number(master.ratingCached),
+    },
+    services: allServices.map((s) => ({ id: s.id, category: s.category, name: s.name })),
+    specialtyServiceIds: [...specialtyServiceIds],
+  };
+}
+
+export async function updateMasterProfile(
+  masterId: string,
+  input: { name: string; bio?: string; instagramUrl?: string; avatarUrl?: string; specialtyServiceIds: string[] },
+): Promise<void> {
+  await prisma.$transaction([
+    prisma.master.update({
+      where: { id: masterId },
+      data: {
+        name: input.name,
+        bio: input.bio || null,
+        instagramUrl: input.instagramUrl || null,
+        ...(input.avatarUrl ? { avatarUrl: input.avatarUrl } : {}),
+      },
+    }),
+    prisma.masterSpecialty.deleteMany({ where: { masterId } }),
+    ...(input.specialtyServiceIds.length > 0
+      ? [
+          prisma.masterSpecialty.createMany({
+            data: input.specialtyServiceIds.map((serviceId) => ({ masterId, serviceId })),
+          }),
+        ]
+      : []),
+  ]);
+}

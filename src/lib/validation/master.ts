@@ -23,3 +23,18 @@ export const overrideCreateSchema = z.object({
   timeTo: timeString.optional(),
   note: z.string().trim().max(200).optional(),
 });
+
+export const profileUpdateSchema = z.object({
+  name: z.string().trim().min(1, "Ім'я обов'язкове").max(100),
+  bio: z.string().trim().max(500, "Максимум 500 символів").optional(),
+  instagramUrl: z
+    .string()
+    .trim()
+    .max(200)
+    .refine((v) => v === "" || /^https:\/\/(www\.)?instagram\.com\//.test(v), {
+      message: "Посилання має вести на instagram.com",
+    })
+    .optional(),
+  avatarUrl: z.string().url().optional(),
+  specialtyServiceIds: z.array(z.string().uuid()).max(50),
+});

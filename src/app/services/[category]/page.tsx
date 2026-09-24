@@ -9,7 +9,9 @@ import {
   getCategory,
   getServicesByCategory,
 } from "@/lib/data/services";
-import { getMastersByCategory } from "@/lib/data/masters";
+import { prisma } from "@/lib/prisma";
+
+export const revalidate = 60;
 
 export function generateStaticParams() {
   return categories.map((category) => ({ category: category.slug }));
@@ -40,7 +42,10 @@ export default async function CategoryPage({
   if (!category) notFound();
 
   const categoryServices = getServicesByCategory(slug);
-  const categoryMasters = getMastersByCategory(slug);
+  const categoryMasters = await prisma.master.findMany({
+    where: { isActive: true, specialties: { some: { service: { category: slug } } } },
+    orderBy: { name: "asc" },
+  });
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -108,7 +113,7 @@ export default async function CategoryPage({
                 className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-accent-border"
               >
                 <span className="font-display text-lg text-fg">{master.name}</span>
-                <span className="text-sm text-fg-muted">{master.role}</span>
+                <span className="text-sm text-fg-muted">{category.tagline}</span>
               </Link>
             ))}
           </div>

@@ -1,4 +1,7 @@
-// Placeholder team content — replace with real bios/photos once provided by the client.
+// Placeholder team content, used only as the seed source (prisma/seed.ts) for
+// the DB rows the app actually reads at runtime — public pages and the master
+// dashboard read from Postgres, not this file. Replace with real bios/photos
+// once provided by the client, then re-run `npm run db:seed`.
 
 export type Master = {
   slug: string;
