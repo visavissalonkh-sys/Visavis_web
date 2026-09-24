@@ -1,8 +1,8 @@
 import { addDays, endOfWeek, startOfWeek } from "date-fns";
-import type { BookingStatus, Prisma } from "@prisma/client";
+import type { AvailabilityOverrideType, BookingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { SessionPayload } from "@/lib/auth";
-import { formatDateOnly } from "@/lib/booking";
+import { formatDateOnly, parseDateOnly } from "@/lib/booking";
 import { getSalonToday } from "@/lib/timezone";
 
 /** Resolves the Master row owned by this session, or null if the user isn't a master (yet). */
@@ -219,4 +219,150 @@ export async function getBookingDetail(masterId: string, bookingId: string) {
     },
     statusHistory,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Availability: recurring weekly schedule + one-off overrides
+// ---------------------------------------------------------------------------
+
+/**
+ * All salon locations a master can set a schedule at. There's no separate
+ * "assigned locations" concept in the schema — a MasterLocation row *is* the
+ * assignment — so this intentionally returns every active location rather
+ * than only ones the master already has a schedule for, otherwise a master
+ * with no schedule yet would have nowhere to start one.
+ */
+export async function getAllActiveLocations() {
+  return prisma.location.findMany({ where: { isActive: true }, orderBy: { name: "asc" } });
+}
+
+/** Locations a master currently has at least one working day at. */
+export async function getMasterWorkingLocations(masterId: string) {
+  const links = await prisma.masterLocation.findMany({
+    where: { masterId },
+    distinct: ["locationId"],
+    include: { location: true },
+  });
+  return links.map((l) => l.location).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export type RegularScheduleDay = {
+  weekday: number;
+  isWorking: boolean;
+  timeFrom: string | null;
+  timeTo: string | null;
+};
+
+export async function getRegularSchedule(masterId: string, locationId: string): Promise<RegularScheduleDay[]> {
+  const rows = await prisma.masterLocation.findMany({ where: { masterId, locationId } });
+  const byWeekday = new Map(rows.map((r) => [r.weekday, r]));
+
+  return Array.from({ length: 7 }, (_, weekday) => {
+    const row = byWeekday.get(weekday);
+    return {
+      weekday,
+      isWorking: !!row,
+      timeFrom: row?.timeFrom ?? null,
+      timeTo: row?.timeTo ?? null,
+    };
+  });
+}
+
+export class InvalidScheduleError extends Error {}
+
+export async function updateRegularSchedule(
+  masterId: string,
+  locationId: string,
+  schedule: { weekday: number; isWorking: boolean; timeFrom?: string; timeTo?: string }[],
+): Promise<void> {
+  for (const day of schedule) {
+    if (day.isWorking) {
+      if (!day.timeFrom || !day.timeTo || day.timeFrom >= day.timeTo) {
+        throw new InvalidScheduleError(`Некоректний час для дня ${day.weekday}`);
+      }
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    for (const day of schedule) {
+      if (day.isWorking) {
+        await tx.masterLocation.upsert({
+          where: { masterId_locationId_weekday: { masterId, locationId, weekday: day.weekday } },
+          update: { timeFrom: day.timeFrom!, timeTo: day.timeTo! },
+          create: { masterId, locationId, weekday: day.weekday, timeFrom: day.timeFrom!, timeTo: day.timeTo! },
+        });
+      } else {
+        await tx.masterLocation.deleteMany({ where: { masterId, locationId, weekday: day.weekday } });
+      }
+    }
+  });
+}
+
+export async function getOverrides(masterId: string) {
+  const today = getSalonToday();
+  const overrides = await prisma.masterAvailabilityOverride.findMany({
+    where: { masterId, date: { gte: today } },
+    orderBy: { date: "asc" },
+  });
+
+  return overrides.map((o) => ({
+    id: o.id,
+    date: formatDateOnly(o.date),
+    type: o.type,
+    timeFrom: o.timeFrom,
+    timeTo: o.timeTo,
+    note: o.note,
+  }));
+}
+
+export class OverrideConflictError extends Error {}
+export class PastDateError extends Error {}
+
+export async function createOverride(
+  masterId: string,
+  input: { date: string; type: AvailabilityOverrideType; timeFrom?: string; timeTo?: string; note?: string },
+) {
+  const date = parseDateOnly(input.date);
+  const today = getSalonToday();
+  if (date < today) {
+    throw new PastDateError();
+  }
+
+  if ((input.type === "extra_slot" || input.type === "blocked_range") && (!input.timeFrom || !input.timeTo || input.timeFrom >= input.timeTo)) {
+    throw new InvalidScheduleError("Потрібен коректний проміжок часу");
+  }
+
+  const existing = await prisma.masterAvailabilityOverride.findMany({ where: { masterId, date } });
+
+  const wouldConflict =
+    input.type === "day_off"
+      ? existing.length > 0
+      : existing.some((e) => {
+          if (e.type === "day_off") return true;
+          if (e.type !== input.type || !e.timeFrom || !e.timeTo || !input.timeFrom || !input.timeTo) return false;
+          return input.timeFrom < e.timeTo && input.timeTo > e.timeFrom;
+        });
+
+  if (wouldConflict) {
+    throw new OverrideConflictError();
+  }
+
+  return prisma.masterAvailabilityOverride.create({
+    data: {
+      masterId,
+      date,
+      type: input.type,
+      timeFrom: input.timeFrom,
+      timeTo: input.timeTo,
+      note: input.note,
+      createdBy: "master",
+    },
+  });
+}
+
+export async function deleteOverride(masterId: string, overrideId: string): Promise<boolean> {
+  const override = await prisma.masterAvailabilityOverride.findUnique({ where: { id: overrideId } });
+  if (!override || override.masterId !== masterId) return false;
+  await prisma.masterAvailabilityOverride.delete({ where: { id: overrideId } });
+  return true;
 }
