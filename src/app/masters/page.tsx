@@ -5,7 +5,9 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { prisma } from "@/lib/prisma";
 import { categories } from "@/lib/data/services";
 
-export const revalidate = 60;
+// Not SSG — see /masters/[slug]/page.tsx for why (build-time DB dependency
+// broke the Railway build).
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Майстри",

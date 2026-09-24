@@ -4,18 +4,15 @@ import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
-import {
-  categories,
-  getCategory,
-  getServicesByCategory,
-} from "@/lib/data/services";
+import { getCategory, getServicesByCategory } from "@/lib/data/services";
 import { prisma } from "@/lib/prisma";
 
-export const revalidate = 60;
-
-export function generateStaticParams() {
-  return categories.map((category) => ({ category: category.slug }));
-}
+// Not SSG: the page body queries Prisma for categoryMasters, which needs the
+// DB reachable at build time — Railway's build step doesn't guarantee that
+// (see /masters/[slug]/page.tsx). generateStaticParams itself only needed
+// the static `categories` list, but there's no point keeping it once the
+// page can't be prerendered anyway.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,

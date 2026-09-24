@@ -6,12 +6,11 @@ import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { categories } from "@/lib/data/services";
 
-export const revalidate = 60;
-
-export async function generateStaticParams() {
-  const masters = await prisma.master.findMany({ where: { isActive: true }, select: { slug: true } });
-  return masters.map((m) => ({ slug: m.slug }));
-}
+// Not SSG: generateStaticParams and pre-rendering both need the DB reachable
+// at build time, which Railway's build step isn't guaranteed to have (this
+// is what broke the build — see the git history for the repro). Renders
+// per-request instead; fine at this traffic volume.
+export const dynamic = "force-dynamic";
 
 async function getMasterBySlug(slug: string) {
   return prisma.master.findFirst({

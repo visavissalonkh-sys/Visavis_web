@@ -4,7 +4,8 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { locations } from "@/lib/data/locations";
 import { prisma } from "@/lib/prisma";
 
-export const revalidate = 60;
+// Not SSG — see /masters/[slug]/page.tsx for why.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Філії",

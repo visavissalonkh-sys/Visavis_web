@@ -7,7 +7,8 @@ import { LocationsStrip } from "@/components/sections/locations-strip";
 import { Testimonials } from "@/components/sections/testimonials";
 import { CtaBanner } from "@/components/sections/cta-banner";
 
-export const revalidate = 60;
+// Not SSG — see /masters/[slug]/page.tsx for why.
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const masters = await prisma.master.findMany({
