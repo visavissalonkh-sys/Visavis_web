@@ -17,6 +17,7 @@ export type SessionPayload = {
   role: UserRole;
   jti: string;
   exp: number;
+  ver: number;
 };
 
 function getSecretKey() {
@@ -27,12 +28,34 @@ function sessionMaxAgeSeconds(role: UserRole): number {
   return role === "admin" ? ADMIN_SESSION_MAX_AGE_SECONDS : CLIENT_SESSION_MAX_AGE_SECONDS;
 }
 
+function tokenVersionKey(userId: string): string {
+  return `user:tokenver:${userId}`;
+}
+
+async function getTokenVersion(userId: string): Promise<number> {
+  const raw = await redis.get(tokenVersionKey(userId));
+  return raw ? Number(raw) : 0;
+}
+
+/** Invalidates EVERY token ever issued to this user, on every device at
+ * once — unlike blacklistJti (one specific token), this doesn't need to
+ * know which sessions exist. Every token embeds the version active when it
+ * was signed; bumping it makes all of them fail the `ver` check below on
+ * their very next use. Used when an admin changes a user's role or
+ * deactivates a master (Stage 5) — a stale role claim in an old JWT would
+ * otherwise keep working via the fast in-memory-only checks (getSession(),
+ * proxy.ts) until that token's natural expiry. */
+export async function bumpTokenVersion(userId: string): Promise<void> {
+  await redis.incr(tokenVersionKey(userId));
+}
+
 export async function signSession(payload: { sub: string; phone: string; role: UserRole }): Promise<string> {
   // Web Crypto's global `crypto.randomUUID()`, not node:crypto's — this
   // module is imported by proxy.ts, which runs on the Edge Runtime and
   // doesn't support Node core modules.
   const jti = crypto.randomUUID();
-  return new SignJWT({ sub: payload.sub, phone: payload.phone, role: payload.role })
+  const ver = await getTokenVersion(payload.sub);
+  return new SignJWT({ sub: payload.sub, phone: payload.phone, role: payload.role, ver })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setJti(jti)
@@ -44,18 +67,14 @@ function blacklistKey(jti: string): string {
   return `jwt:blacklist:${jti}`;
 }
 
-/** Immediately kills one specific token (by jti) — used on logout. Does NOT
- * affect any other session the same user has open on another device; see
- * the admin role-change flow (Stage 5) for invalidating every session at once. */
+/** Immediately kills one specific token (by jti) — used on logout. Kills
+ * only this one session; see bumpTokenVersion for invalidating all of a
+ * user's sessions at once. */
 export async function blacklistJti(jti: string, expUnixSeconds: number): Promise<void> {
   const ttl = expUnixSeconds - Math.floor(Date.now() / 1000);
   if (ttl > 0) {
     await redis.set(blacklistKey(jti), "1", "EX", ttl);
   }
-}
-
-async function isJtiBlacklisted(jti: string): Promise<boolean> {
-  return (await redis.get(blacklistKey(jti))) !== null;
 }
 
 export async function verifySessionToken(token: string): Promise<SessionPayload | null> {
@@ -65,11 +84,23 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
       typeof payload.sub !== "string" ||
       typeof payload.phone !== "string" ||
       typeof payload.jti !== "string" ||
-      typeof payload.exp !== "number"
+      typeof payload.exp !== "number" ||
+      typeof payload.ver !== "number"
     ) {
       return null;
     }
-    if (await isJtiBlacklisted(payload.jti)) return null;
+
+    // MGET, not two separate GETs — this runs on every authenticated
+    // request (including every page view via proxy.ts), so it's worth one
+    // round trip instead of two for the pair of revocation checks.
+    const [blacklisted, versionRaw] = await redis.mget(
+      blacklistKey(payload.jti),
+      tokenVersionKey(payload.sub),
+    );
+    if (blacklisted !== null) return null;
+    const currentVersion = versionRaw ? Number(versionRaw) : 0;
+    if (payload.ver !== currentVersion) return null;
+
     return payload as SessionPayload;
   } catch {
     return null;

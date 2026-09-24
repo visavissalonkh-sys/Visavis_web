@@ -306,7 +306,16 @@ model AdminAuditLog {
   action     String
   entityType String   @map("entity_type")
   entityId   String   @map("entity_id")
+  // oldValue/newValue are for admin actions with a clear before/after state
+  // (role change, price edit, deactivation) — Stage 5's audit-log spec asks
+  // for this explicitly. metadata stays as the generic free-form field the
+  // master panel's existing logMasterAudit calls already use (e.g. a
+  // rejection reason) — nullable, so those older rows are unaffected.
+  oldValue   Json?    @map("old_value")
+  newValue   Json?    @map("new_value")
   metadata   Json?
+  ip         String?
+  userAgent  String?  @map("user_agent")
   createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([entityType, entityId])
