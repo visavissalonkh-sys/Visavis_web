@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Inter, Playfair_Display } from "next/font/google";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
@@ -51,7 +52,9 @@ const localBusinessJsonLd = {
   },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html
       lang="uk"
@@ -60,6 +63,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col bg-bg text-fg">
         <script
           type="application/ld+json"
+          nonce={nonce}
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
         />
         <AuthModalProvider>

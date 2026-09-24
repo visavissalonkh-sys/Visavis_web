@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,7 @@ export default async function MasterPage({
 
   const session = await getSession();
   const favorited = session?.role === "client" ? await isFavorite(session.sub, master.id) : null;
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   const specialtyCategorySlugs = [...new Set(master.specialties.map((s) => s.service.category))];
   const specialties = categories.filter((c) => specialtyCategorySlugs.includes(c.slug));
@@ -78,6 +80,7 @@ export default async function MasterPage({
     <Container className="flex flex-col gap-14 py-20">
       <script
         type="application/ld+json"
+        nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -43,6 +44,7 @@ export default async function CategoryPage({
     where: { isActive: true, specialties: { some: { service: { category: slug } } } },
     orderBy: { name: "asc" },
   });
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -66,6 +68,7 @@ export default async function CategoryPage({
     <Container className="flex flex-col gap-16 py-20">
       <script
         type="application/ld+json"
+        nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 

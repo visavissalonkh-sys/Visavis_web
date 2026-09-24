@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
   }
 
   const token = await signSession({ sub: user.id, phone: user.phone, role: user.role });
-  await setSessionCookie(token);
+  await setSessionCookie(token, user.role);
 
   logAuthEvent({ action: "verify_otp_success", ip, phone });
 

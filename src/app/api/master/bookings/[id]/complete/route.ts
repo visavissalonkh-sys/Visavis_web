@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getMasterForSession, getOwnedBooking, logMasterAudit } from "@/lib/master";
 import { isTrustedOrigin } from "@/lib/csrf";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/master/bookings/[id]/complete">) {
   if (!isTrustedOrigin(request)) {
@@ -16,6 +17,11 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/master
 
   const master = await getMasterForSession(session);
   if (!master) return NextResponse.json({ error: "not_a_master" }, { status: 403 });
+
+  const limit = await rateLimit(`master:actions:${master.id}`, 30, 60);
+  if (!limit.success) {
+    return NextResponse.json({ error: "rate_limited", message: "Забагато дій. Спробуйте за хвилину." }, { status: 429 });
+  }
 
   const { id } = await ctx.params;
   const booking = await getOwnedBooking(master.id, id);
