@@ -8,6 +8,7 @@ import { uk } from "date-fns/locale";
 import type { AccountBookingDetail as AccountBookingDetailData } from "@/lib/account";
 import { StatusBadge } from "@/components/master/StatusBadge";
 import { CancelBookingModal } from "@/components/account/CancelBookingModal";
+import { ReviewModal } from "@/components/account/ReviewModal";
 import { Button, ButtonAction } from "@/components/ui/button";
 
 function fullDateUk(dateOnly: string, time: string): string {
@@ -26,6 +27,8 @@ const REBOOKABLE_STATUSES = new Set(["pending", "confirmed", "completed"]);
 export function AccountBookingDetail({ booking: initial }: { booking: NonNullable<AccountBookingDetailData> }) {
   const [booking, setBooking] = useState(initial);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewThanks, setReviewThanks] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -87,6 +90,7 @@ export function AccountBookingDetail({ booking: initial }: { booking: NonNullabl
         </dl>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
+        {reviewThanks && <p className="text-sm text-accent">Дякуємо за ваш відгук! 🙏</p>}
 
         <div className="flex flex-wrap gap-3">
           {booking.canCancel && (
@@ -96,6 +100,15 @@ export function AccountBookingDetail({ booking: initial }: { booking: NonNullabl
               onClick={() => setShowCancelModal(true)}
             >
               Скасувати
+            </ButtonAction>
+          )}
+          {booking.status === "completed" && !booking.hasReview && !reviewThanks && (
+            <ButtonAction
+              variant="outline"
+              className="border-accent-border bg-accent-soft text-accent hover:bg-accent-soft/70"
+              onClick={() => setShowReviewModal(true)}
+            >
+              ⭐ Залишити відгук
             </ButtonAction>
           )}
           {REBOOKABLE_STATUSES.has(booking.status) && (
@@ -113,6 +126,21 @@ export function AccountBookingDetail({ booking: initial }: { booking: NonNullabl
           loading={cancelling}
           onConfirm={handleCancel}
           onClose={() => setShowCancelModal(false)}
+        />
+      )}
+
+      {showReviewModal && (
+        <ReviewModal
+          bookingId={booking.id}
+          serviceName={booking.serviceName}
+          masterName={booking.master.name}
+          onClose={() => setShowReviewModal(false)}
+          onSubmitted={() => {
+            setShowReviewModal(false);
+            setReviewThanks(true);
+            setBooking((b) => ({ ...b, hasReview: true }));
+            router.refresh();
+          }}
         />
       )}
     </div>
