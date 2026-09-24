@@ -5,6 +5,9 @@ import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { categories } from "@/lib/data/services";
+import { getSession } from "@/lib/auth";
+import { isFavorite } from "@/lib/account";
+import { FavoriteToggleButton } from "@/components/account/FavoriteToggleButton";
 
 // Not SSG: generateStaticParams and pre-rendering both need the DB reachable
 // at build time, which Railway's build step isn't guaranteed to have (this
@@ -51,6 +54,9 @@ export default async function MasterPage({
   const { slug } = await params;
   const master = await getMasterBySlug(slug);
   if (!master) notFound();
+
+  const session = await getSession();
+  const favorited = session?.role === "client" ? await isFavorite(session.sub, master.id) : null;
 
   const specialtyCategorySlugs = [...new Set(master.specialties.map((s) => s.service.category))];
   const specialties = categories.filter((c) => specialtyCategorySlugs.includes(c.slug));
@@ -114,6 +120,7 @@ export default async function MasterPage({
 
           <div className="flex flex-wrap gap-3 pt-2">
             <Button href={`/booking?master=${master.slug}`}>Записатися до {master.name.split(" ")[0]}</Button>
+            {favorited !== null && <FavoriteToggleButton masterId={master.id} initialFavorited={favorited} />}
             {master.instagramUrl ? (
               <a
                 href={master.instagramUrl}

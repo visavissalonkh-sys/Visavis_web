@@ -158,3 +158,70 @@ export async function getBookingDetail(clientId: string, bookingId: string) {
       ACTIVE_STATUSES.includes(booking.status) && hoursUntilVisit > MIN_HOURS_BEFORE_CANCEL,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Profile
+// ---------------------------------------------------------------------------
+
+export async function updateAccountName(userId: string, name: string) {
+  return prisma.user.update({ where: { id: userId }, data: { name } });
+}
+
+// ---------------------------------------------------------------------------
+// Telegram link status
+// ---------------------------------------------------------------------------
+
+export function getTelegramStatus(user: { telegramId: bigint | null; telegramUsername: string | null }) {
+  return { linked: user.telegramId !== null, username: user.telegramUsername };
+}
+
+/** Clears the Telegram link. The account isn't locked out for good — the
+ * bot's /start + contact-share flow re-links by phone the same way it does
+ * for a brand-new account — but OTP delivery has nowhere to go until then. */
+export async function unlinkTelegram(userId: string) {
+  await prisma.user.update({ where: { id: userId }, data: { telegramId: null, telegramUsername: null } });
+}
+
+// ---------------------------------------------------------------------------
+// Favorites
+// ---------------------------------------------------------------------------
+
+export type FavoritesList = Awaited<ReturnType<typeof getFavorites>>;
+
+export async function getFavorites(clientId: string) {
+  const favorites = await prisma.favorite.findMany({
+    where: { clientId },
+    include: { master: { include: { specialties: { include: { service: true } } } } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return favorites.map((f) => ({
+    masterId: f.masterId,
+    name: f.master.name,
+    avatarUrl: f.master.avatarUrl,
+    rating: Number(f.master.ratingCached),
+    specialtyNames: [...new Set(f.master.specialties.map((s) => s.service.name))],
+  }));
+}
+
+export class MasterNotFoundError extends Error {}
+
+export async function addFavorite(clientId: string, masterId: string) {
+  const master = await prisma.master.findFirst({ where: { id: masterId, isActive: true } });
+  if (!master) throw new MasterNotFoundError();
+
+  await prisma.favorite.upsert({
+    where: { clientId_masterId: { clientId, masterId } },
+    update: {},
+    create: { clientId, masterId },
+  });
+}
+
+export async function removeFavorite(clientId: string, masterId: string) {
+  await prisma.favorite.deleteMany({ where: { clientId, masterId } });
+}
+
+export async function isFavorite(clientId: string, masterId: string): Promise<boolean> {
+  const favorite = await prisma.favorite.findUnique({ where: { clientId_masterId: { clientId, masterId } } });
+  return favorite !== null;
+}
