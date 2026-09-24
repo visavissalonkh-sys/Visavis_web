@@ -27,3 +27,42 @@ export const adminBookingsListQuerySchema = z.object({
   sortDir: z.enum(["asc", "desc"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
 });
+
+const scheduleDaySchema = z.object({
+  weekday: z.number().int().min(0).max(6),
+  isWorking: z.boolean(),
+  timeFrom: timeOnly.optional(),
+  timeTo: timeOnly.optional(),
+});
+
+export const masterScheduleInputSchema = z.object({
+  locationId: uuid,
+  schedule: z.array(scheduleDaySchema).length(7, "Потрібен розклад для всіх 7 днів тижня"),
+});
+
+export const adminCreateMasterSchema = z.object({
+  name: z.string().trim().min(1, "Ім'я обов'язкове").max(100),
+  phone: z.string().min(5).max(20),
+  bio: z.string().trim().max(500).optional(),
+  instagramUrl: z.string().trim().max(200).optional(),
+  avatarUrl: z.string().url().optional(),
+  specialtyServiceIds: z.array(uuid).max(50),
+  schedules: z.array(masterScheduleInputSchema).max(10),
+});
+
+export const adminUpdateMasterSchema = z.object({
+  name: z.string().trim().min(1, "Ім'я обов'язкове").max(100),
+  bio: z.string().trim().max(500).optional(),
+  instagramUrl: z.string().trim().max(200).optional(),
+  avatarUrl: z.string().url().optional(),
+  specialtyServiceIds: z.array(uuid).max(50),
+  schedules: z.array(masterScheduleInputSchema).max(10),
+});
+
+export const deactivateMasterSchema = z.object({
+  cancelActiveBookings: z.boolean(),
+});
+
+export const reauthVerifySchema = z.object({
+  code: z.string().regex(/^\d{6}$/, "Код має складатись з 6 цифр"),
+});

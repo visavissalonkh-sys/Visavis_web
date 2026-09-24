@@ -10,10 +10,16 @@ export function AvatarUploader({
   name,
   avatarUrl,
   onUploaded,
+  signatureEndpoint = "/api/master/profile/avatar-signature",
 }: {
   name: string;
   avatarUrl: string | null;
   onUploaded: (url: string) => void;
+  /** Defaults to the master's own profile endpoint; the admin master form
+   * passes its own (uploads for an arbitrary/not-yet-created master, so it
+   * can't be gated on "the calling user's own master row" the way this
+   * default is). */
+  signatureEndpoint?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(avatarUrl);
@@ -26,7 +32,7 @@ export function AvatarUploader({
     setUploading(true);
 
     try {
-      const sigRes = await fetch("/api/master/profile/avatar-signature", { method: "POST" });
+      const sigRes = await fetch(signatureEndpoint, { method: "POST" });
       const sig = await sigRes.json();
       if (!sigRes.ok) {
         setError("Не вдалося підготувати завантаження.");

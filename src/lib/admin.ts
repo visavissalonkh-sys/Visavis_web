@@ -1,4 +1,4 @@
-import { addDays, endOfWeek, startOfWeek, subDays } from "date-fns";
+import { addDays, endOfMonth, endOfWeek, startOfMonth, startOfWeek, subDays } from "date-fns";
 import type { BookingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession, bumpTokenVersion, type SessionPayload } from "@/lib/auth";
@@ -18,6 +18,16 @@ import { cancelReminders, scheduleReminders, visitStartsAt } from "@/lib/reminde
 import { sendTelegramMessage } from "@/lib/notifications";
 import { normalizePhone } from "@/lib/phone";
 import { getSalonToday } from "@/lib/timezone";
+import {
+  getMasterProfile,
+  updateMasterProfile,
+  updateRegularSchedule,
+  InvalidScheduleError,
+  type RegularScheduleDay,
+} from "@/lib/master";
+import { generateOtpCode, storeOtp, verifyOtp, type VerifyOtpResult } from "@/lib/otp";
+
+export { InvalidScheduleError };
 
 export { SlotUnavailableError, CriticalSectionBusyError };
 
@@ -552,4 +562,324 @@ export async function createAdminBooking(input: AdminCreateBookingInput, admin: 
   });
 
   return booking;
+}
+
+// ---------------------------------------------------------------------------
+// Re-auth (step-up OTP for critical actions — master deactivation, role change)
+// ---------------------------------------------------------------------------
+
+const REAUTH_TTL_SECONDS = 5 * 60;
+
+export class ReauthRequiredError extends Error {}
+
+function reauthKey(jti: string): string {
+  return `admin:reauth:${jti}`;
+}
+
+async function grantReauth(jti: string): Promise<void> {
+  await redis.set(reauthKey(jti), "1", "EX", REAUTH_TTL_SECONDS);
+}
+
+async function hasValidReauth(jti: string): Promise<boolean> {
+  return (await redis.get(reauthKey(jti))) !== null;
+}
+
+/** Throws if this admin session hasn't completed step-up OTP in the last 5
+ * minutes. Every route for a "critical action" (master deactivation, role
+ * change) must call this after requireAdmin() and before doing anything. */
+export async function requireRecentReauth(admin: AdminContext): Promise<void> {
+  if (!(await hasValidReauth(admin.session.jti))) throw new ReauthRequiredError();
+}
+
+/** Sends a fresh OTP to the admin's OWN linked Telegram — same mechanism as
+ * login, reused here as step-up auth rather than a second, parallel one. */
+export async function sendAdminReauthOtp(admin: AdminContext): Promise<{ telegramLinked: boolean }> {
+  const user = await prisma.user.findUnique({ where: { id: admin.adminId } });
+  if (!user?.telegramId) return { telegramLinked: false };
+
+  const code = generateOtpCode();
+  await storeOtp(admin.session.phone, code);
+  await sendTelegramMessage(
+    user.telegramId.toString(),
+    `Код підтвердження дії в адмін-панелі: <b>${code}</b>\nДійсний 5 хвилин. Нікому його не повідомляйте.`,
+  );
+  return { telegramLinked: true };
+}
+
+export async function verifyAdminReauthOtp(admin: AdminContext, code: string): Promise<VerifyOtpResult> {
+  const result = await verifyOtp(admin.session.phone, code);
+  if (result === "ok") await grantReauth(admin.session.jti);
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Masters: list, detail, create, update, deactivate/reactivate
+// ---------------------------------------------------------------------------
+
+export class MasterNotFoundError extends Error {}
+export class MasterPhoneConflictError extends Error {}
+
+const UK_TRANSLIT: Record<string, string> = {
+  а: "a", б: "b", в: "v", г: "h", ґ: "g", д: "d", е: "e", є: "ie", ж: "zh", з: "z",
+  и: "y", і: "i", ї: "i", й: "i", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p",
+  р: "r", с: "s", т: "t", у: "u", ф: "f", х: "kh", ц: "ts", ч: "ch", ш: "sh", щ: "shch",
+  ь: "", ю: "iu", я: "ia", "'": "", "’": "",
+};
+
+function slugifyName(name: string): string {
+  const transliterated = name
+    .toLowerCase()
+    .split("")
+    .map((ch) => UK_TRANSLIT[ch] ?? ch)
+    .join("");
+  return transliterated.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+}
+
+async function generateUniqueMasterSlug(name: string): Promise<string> {
+  const base = slugifyName(name) || "master";
+  let slug = base;
+  let suffix = 2;
+  while (await prisma.master.findUnique({ where: { slug } })) {
+    slug = `${base}-${suffix}`;
+    suffix++;
+  }
+  return slug;
+}
+
+export type AdminMastersList = Awaited<ReturnType<typeof getAdminMastersList>>;
+
+export async function getAdminMastersList() {
+  const now = new Date();
+  const [masters, counts] = await Promise.all([
+    prisma.master.findMany({
+      orderBy: { name: "asc" },
+      include: {
+        specialties: { include: { service: true } },
+        masterLocations: { include: { location: true }, distinct: ["locationId"] },
+      },
+    }),
+    prisma.booking.groupBy({
+      by: ["masterId"],
+      where: { date: { gte: startOfMonth(now), lte: endOfMonth(now) } },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const countByMaster = new Map(counts.map((c) => [c.masterId, c._count._all]));
+
+  return masters.map((m) => ({
+    id: m.id,
+    name: m.name,
+    avatarUrl: m.avatarUrl,
+    isActive: m.isActive,
+    rating: Number(m.ratingCached),
+    specialtyNames: [...new Set(m.specialties.map((s) => s.service.name))],
+    locationNames: [...new Set(m.masterLocations.map((ml) => ml.location.name))],
+    bookingsThisMonth: countByMaster.get(m.id) ?? 0,
+  }));
+}
+
+export type AdminMasterDetail = Awaited<ReturnType<typeof getAdminMasterDetail>>;
+
+export async function getAdminMasterDetail(masterId: string) {
+  const master = await prisma.master.findUnique({ where: { id: masterId }, include: { user: true } });
+  if (!master) throw new MasterNotFoundError();
+
+  const [profile, allLocations, masterLocations] = await Promise.all([
+    getMasterProfile(masterId),
+    prisma.location.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.masterLocation.findMany({ where: { masterId } }),
+  ]);
+
+  const schedules = allLocations.map((loc) => {
+    const rows = masterLocations.filter((ml) => ml.locationId === loc.id);
+    const byWeekday = new Map(rows.map((r) => [r.weekday, r]));
+    const days: RegularScheduleDay[] = Array.from({ length: 7 }, (_, weekday) => {
+      const row = byWeekday.get(weekday);
+      return { weekday, isWorking: !!row, timeFrom: row?.timeFrom ?? null, timeTo: row?.timeTo ?? null };
+    });
+    return { locationId: loc.id, locationName: loc.name, days };
+  });
+
+  return {
+    ...profile,
+    isActive: master.isActive,
+    phone: master.user.phone,
+    telegramLinked: master.user.telegramId !== null,
+    allLocations,
+    schedules,
+  };
+}
+
+// The write shape (undefined for a day off) — distinct from RegularScheduleDay,
+// which is the read shape coming back from getRegularSchedule (null for a day
+// off, since that's a real DB row's absence, not an unset form field).
+export type AdminScheduleDayInput = { weekday: number; isWorking: boolean; timeFrom?: string; timeTo?: string };
+export type AdminMasterScheduleInput = { locationId: string; schedule: AdminScheduleDayInput[] };
+export type AdminMasterProfileInput = {
+  name: string;
+  bio?: string;
+  instagramUrl?: string;
+  avatarUrl?: string;
+  specialtyServiceIds: string[];
+  schedules: AdminMasterScheduleInput[];
+};
+
+export async function createAdminMaster(
+  input: AdminMasterProfileInput & { phone: string },
+  admin: AdminContext,
+  ip: string,
+  userAgent: string | null,
+) {
+  const phone = normalizePhone(input.phone);
+  if (!phone) throw new InvalidPhoneError();
+
+  let user = await prisma.user.findUnique({ where: { phone } });
+  if (user) {
+    if (user.role !== "master") throw new MasterPhoneConflictError();
+    const existingMaster = await prisma.master.findUnique({ where: { userId: user.id } });
+    if (existingMaster) throw new MasterPhoneConflictError();
+  } else {
+    user = await prisma.user.create({ data: { phone, name: input.name, role: "master" } });
+  }
+
+  const slug = await generateUniqueMasterSlug(input.name);
+  const master = await prisma.master.create({
+    data: {
+      userId: user.id,
+      slug,
+      name: input.name,
+      bio: input.bio || null,
+      instagramUrl: input.instagramUrl || null,
+      avatarUrl: input.avatarUrl || null,
+    },
+  });
+
+  if (input.specialtyServiceIds.length > 0) {
+    await prisma.masterSpecialty.createMany({
+      data: input.specialtyServiceIds.map((serviceId) => ({ masterId: master.id, serviceId })),
+    });
+  }
+  for (const s of input.schedules) {
+    await updateRegularSchedule(master.id, s.locationId, s.schedule);
+  }
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: "admin_master_created",
+    entityType: "master",
+    entityId: master.id,
+    newValue: { name: input.name, phone, specialtyServiceIds: input.specialtyServiceIds },
+    ip,
+    userAgent,
+  });
+
+  return master;
+}
+
+export async function updateAdminMaster(
+  masterId: string,
+  input: AdminMasterProfileInput,
+  admin: AdminContext,
+  ip: string,
+  userAgent: string | null,
+) {
+  const before = await prisma.master.findUnique({ where: { id: masterId }, include: { specialties: true } });
+  if (!before) throw new MasterNotFoundError();
+
+  await updateMasterProfile(masterId, input);
+  for (const s of input.schedules) {
+    await updateRegularSchedule(masterId, s.locationId, s.schedule);
+  }
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: "admin_master_updated",
+    entityType: "master",
+    entityId: masterId,
+    oldValue: { name: before.name, bio: before.bio, specialtyServiceIds: before.specialties.map((s) => s.serviceId) },
+    newValue: { name: input.name, bio: input.bio, specialtyServiceIds: input.specialtyServiceIds },
+    ip,
+    userAgent,
+  });
+}
+
+export async function getActiveMasterBookingsCount(masterId: string): Promise<number> {
+  const today = getSalonToday();
+  return prisma.booking.count({
+    where: { masterId, status: { in: ["pending", "confirmed"] }, date: { gte: today } },
+  });
+}
+
+/** Requires requireRecentReauth() to have been checked by the caller first —
+ * this is deliberately not enforced inside the function itself, matching
+ * how requireAdmin() is always called explicitly at the top of a route
+ * rather than threaded through every lib function it protects. */
+export async function deactivateAdminMaster(
+  masterId: string,
+  options: { cancelActiveBookings: boolean },
+  admin: AdminContext,
+  ip: string,
+  userAgent: string | null,
+) {
+  const master = await prisma.master.findUnique({ where: { id: masterId } });
+  if (!master) throw new MasterNotFoundError();
+
+  const today = getSalonToday();
+  const activeBookings = await prisma.booking.findMany({
+    where: { masterId, status: { in: ["pending", "confirmed"] }, date: { gte: today } },
+  });
+
+  if (options.cancelActiveBookings) {
+    for (const booking of activeBookings) {
+      await cancelAdminBooking(booking.id, admin, ip, userAgent);
+    }
+  }
+
+  await prisma.master.update({ where: { id: masterId }, data: { isActive: false } });
+  // A deactivated master shouldn't keep using their still-unexpired session
+  // to act as a master — kill every token they currently hold, immediately.
+  await blacklistUserJWTs(master.userId);
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: "admin_master_deactivated",
+    entityType: "master",
+    entityId: masterId,
+    oldValue: { isActive: true },
+    newValue: {
+      isActive: false,
+      activeBookingsAtDeactivation: activeBookings.length,
+      bookingsCancelled: options.cancelActiveBookings,
+    },
+    ip,
+    userAgent,
+  });
+
+  return { cancelledCount: options.cancelActiveBookings ? activeBookings.length : 0 };
+}
+
+/** Reactivation is the plain undo of a soft-delete — unlike deactivation, it
+ * doesn't touch any bookings and doesn't need step-up re-auth. */
+export async function reactivateAdminMaster(
+  masterId: string,
+  admin: AdminContext,
+  ip: string,
+  userAgent: string | null,
+) {
+  const master = await prisma.master.findUnique({ where: { id: masterId } });
+  if (!master) throw new MasterNotFoundError();
+
+  await prisma.master.update({ where: { id: masterId }, data: { isActive: true } });
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: "admin_master_reactivated",
+    entityType: "master",
+    entityId: masterId,
+    oldValue: { isActive: false },
+    newValue: { isActive: true },
+    ip,
+    userAgent,
+  });
 }

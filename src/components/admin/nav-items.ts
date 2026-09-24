@@ -3,4 +3,5 @@
 export const ADMIN_NAV_ITEMS = [
   { href: "/admin", label: "Дашборд", icon: "◆" },
   { href: "/admin/bookings", label: "Записи", icon: "📋" },
+  { href: "/admin/masters", label: "Майстри", icon: "👥" },
 ] as const;
