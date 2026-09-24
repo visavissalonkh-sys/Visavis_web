@@ -7,14 +7,14 @@ import { redis } from "@/lib/redis";
 export const SLOT_INTERVAL_MINUTES = 30;
 export const LOCK_TTL_SECONDS = 600; // 10 minutes
 
-type Range = [number, number]; // minutes from midnight
+export type Range = [number, number]; // minutes from midnight
 
-function timeToMinutes(time: string): number {
+export function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;
 }
 
-function minutesToTime(total: number): string {
+export function minutesToTime(total: number): string {
   const h = Math.floor(total / 60)
     .toString()
     .padStart(2, "0");
@@ -38,7 +38,7 @@ export function formatBookingDateTimeUk(date: Date, time: string): string {
   return `${capitalized} о ${time}`;
 }
 
-function subtractRange(ranges: Range[], block: Range): Range[] {
+export function subtractRange(ranges: Range[], block: Range): Range[] {
   const result: Range[] = [];
   for (const [start, end] of ranges) {
     if (block[1] <= start || block[0] >= end) {

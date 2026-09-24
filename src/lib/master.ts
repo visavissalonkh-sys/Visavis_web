@@ -2,7 +2,14 @@ import { addDays, endOfWeek, startOfWeek } from "date-fns";
 import type { AvailabilityOverrideType, BookingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { SessionPayload } from "@/lib/auth";
-import { formatDateOnly, parseDateOnly } from "@/lib/booking";
+import {
+  formatDateOnly,
+  minutesToTime,
+  parseDateOnly,
+  subtractRange,
+  timeToMinutes,
+  type Range,
+} from "@/lib/booking";
 import { getSalonToday } from "@/lib/timezone";
 
 /** Resolves the Master row owned by this session, or null if the user isn't a master (yet). */
@@ -365,4 +372,114 @@ export async function deleteOverride(masterId: string, overrideId: string): Prom
   if (!override || override.masterId !== masterId) return false;
   await prisma.masterAvailabilityOverride.delete({ where: { id: overrideId } });
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// Weekly schedule grid (/master/schedule)
+// ---------------------------------------------------------------------------
+
+const SCHEDULE_DISPLAY_START = timeToMinutes("08:00");
+const SCHEDULE_DISPLAY_END = timeToMinutes("22:00");
+const SCHEDULE_SLOT_MINUTES = 30;
+
+export type ScheduleSlotStatus = "booked" | "available" | "blocked" | "off";
+export type ScheduleSlot = {
+  time: string;
+  status: ScheduleSlotStatus;
+  booking?: { id: string; serviceName: string; clientName: string | null };
+};
+export type ScheduleDay = { date: string; weekday: number; slots: ScheduleSlot[] };
+
+function inRanges(t: number, ranges: Range[]): boolean {
+  return ranges.some(([start, end]) => t >= start && t < end);
+}
+
+export async function getWeekSchedule(
+  masterId: string,
+  locationId: string,
+  weekStart: Date,
+): Promise<ScheduleDay[]> {
+  const weekEndExclusive = addDays(weekStart, 7);
+
+  const [masterLocations, overrides, bookings] = await Promise.all([
+    prisma.masterLocation.findMany({ where: { masterId, locationId } }),
+    prisma.masterAvailabilityOverride.findMany({
+      where: { masterId, date: { gte: weekStart, lt: weekEndExclusive } },
+    }),
+    prisma.booking.findMany({
+      where: {
+        masterId,
+        locationId,
+        date: { gte: weekStart, lt: weekEndExclusive },
+        status: { in: ["pending", "confirmed", "completed"] },
+      },
+      include: { service: true, client: true },
+    }),
+  ]);
+
+  const scheduleByWeekday = new Map(masterLocations.map((m) => [m.weekday, m]));
+  const overrideByDate = new Map(overrides.map((o) => [formatDateOnly(o.date), o]));
+  const bookingsByDate = new Map<string, typeof bookings>();
+  for (const b of bookings) {
+    const key = formatDateOnly(b.date);
+    bookingsByDate.set(key, [...(bookingsByDate.get(key) ?? []), b]);
+  }
+
+  const days: ScheduleDay[] = [];
+
+  for (let i = 0; i < 7; i++) {
+    const date = addDays(weekStart, i);
+    const dateKey = formatDateOnly(date);
+    const weekday = date.getUTCDay();
+
+    const baseRow = scheduleByWeekday.get(weekday);
+    const override = overrideByDate.get(dateKey);
+
+    const baseRange: Range | null = baseRow ? [timeToMinutes(baseRow.timeFrom), timeToMinutes(baseRow.timeTo)] : null;
+    const extraRange: Range | null =
+      override?.type === "extra_slot" && override.timeFrom && override.timeTo
+        ? [timeToMinutes(override.timeFrom), timeToMinutes(override.timeTo)]
+        : null;
+
+    const wouldHaveWorked: Range[] = [baseRange, extraRange].filter((r): r is Range => r !== null);
+
+    let effectiveWorking: Range[];
+    if (override?.type === "day_off") {
+      effectiveWorking = [];
+    } else if (override?.type === "blocked_range" && override.timeFrom && override.timeTo) {
+      effectiveWorking = subtractRange(wouldHaveWorked, [
+        timeToMinutes(override.timeFrom),
+        timeToMinutes(override.timeTo),
+      ]);
+    } else {
+      effectiveWorking = wouldHaveWorked;
+    }
+
+    const dayBookings = bookingsByDate.get(dateKey) ?? [];
+
+    const slots: ScheduleSlot[] = [];
+    for (let t = SCHEDULE_DISPLAY_START; t <= SCHEDULE_DISPLAY_END; t += SCHEDULE_SLOT_MINUTES) {
+      const booking = dayBookings.find(
+        (b) => t >= timeToMinutes(b.timeFrom) && t < timeToMinutes(b.timeTo),
+      );
+
+      if (booking) {
+        slots.push({
+          time: minutesToTime(t),
+          status: "booked",
+          booking: { id: booking.id, serviceName: booking.service.name, clientName: booking.client.name },
+        });
+      } else if (inRanges(t, effectiveWorking)) {
+        slots.push({ time: minutesToTime(t), status: "available" });
+      } else if (inRanges(t, wouldHaveWorked)) {
+        slots.push({ time: minutesToTime(t), status: "blocked" });
+      } else {
+        slots.push({ time: minutesToTime(t), status: "off" });
+      }
+    }
+
+    days.push({ date: dateKey, weekday, slots });
+  }
+
+  return days;
 }
