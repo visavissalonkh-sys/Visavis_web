@@ -107,3 +107,116 @@ export async function getDashboardData(masterId: string, masterName: string) {
     },
   };
 }
+
+const ALL_STATUSES: BookingStatus[] = ["pending", "confirmed", "completed", "cancelled", "no_show"];
+export const BOOKINGS_PAGE_SIZE = 20;
+
+export async function getBookingsList({
+  masterId,
+  status,
+  date,
+  page,
+}: {
+  masterId: string;
+  status?: BookingStatus;
+  date?: string;
+  page: number;
+}) {
+  const where: Prisma.BookingWhereInput = {
+    masterId,
+    status: status && ALL_STATUSES.includes(status) ? status : undefined,
+    date: date ? new Date(`${date}T00:00:00.000Z`) : undefined,
+  };
+
+  const [bookings, total] = await Promise.all([
+    prisma.booking.findMany({
+      where,
+      include: { service: true, location: true, client: true },
+      orderBy: [{ date: "desc" }, { timeFrom: "desc" }],
+      skip: (page - 1) * BOOKINGS_PAGE_SIZE,
+      take: BOOKINGS_PAGE_SIZE,
+    }),
+    prisma.booking.count({ where }),
+  ]);
+
+  return {
+    bookings: bookings.map((b) => ({
+      id: b.id,
+      date: formatDateOnly(b.date),
+      timeFrom: b.timeFrom,
+      timeTo: b.timeTo,
+      status: b.status,
+      serviceName: b.service.name,
+      locationName: b.location.name,
+      clientName: b.client.name,
+      clientPhone: b.client.phone,
+    })),
+    total,
+    page,
+    pageSize: BOOKINGS_PAGE_SIZE,
+    totalPages: Math.max(1, Math.ceil(total / BOOKINGS_PAGE_SIZE)),
+  };
+}
+
+const STATUS_HISTORY_ACTIONS: Record<string, string> = {
+  booking_confirmed: "confirmed",
+  booking_rejected: "cancelled",
+  booking_completed: "completed",
+};
+
+export async function getBookingDetail(masterId: string, bookingId: string) {
+  const booking = await getOwnedBooking(masterId, bookingId);
+  if (!booking) return null;
+
+  const [auditEntries, clientBookings] = await Promise.all([
+    prisma.adminAuditLog.findMany({
+      where: { entityType: "booking", entityId: bookingId },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.booking.findMany({
+      where: { clientId: booking.clientId, masterId, id: { not: bookingId } },
+      include: { service: true },
+      orderBy: [{ date: "desc" }, { timeFrom: "desc" }],
+      take: 5,
+    }),
+  ]);
+
+  const statusHistory = [
+    { status: "pending", at: booking.createdAt.toISOString() },
+    ...auditEntries
+      .filter((entry) => entry.action in STATUS_HISTORY_ACTIONS)
+      .map((entry) => ({ status: STATUS_HISTORY_ACTIONS[entry.action], at: entry.createdAt.toISOString() })),
+  ];
+
+  const totalVisits = await prisma.booking.count({
+    where: { clientId: booking.clientId, masterId, status: "completed" },
+  });
+
+  return {
+    booking: {
+      id: booking.id,
+      date: formatDateOnly(booking.date),
+      timeFrom: booking.timeFrom,
+      timeTo: booking.timeTo,
+      status: booking.status,
+      comment: booking.comment,
+      serviceName: booking.service.name,
+      durationMinutes: booking.service.durationMinutes,
+      locationName: booking.location.name,
+      locationAddress: booking.location.address,
+    },
+    client: {
+      id: booking.client.id,
+      name: booking.client.name,
+      phone: booking.client.phone,
+      totalVisits,
+      recentVisits: clientBookings.map((b) => ({
+        date: formatDateOnly(b.date),
+        serviceName: b.service.name,
+        status: b.status,
+        comment: b.comment,
+      })),
+    },
+    statusHistory,
+  };
+}

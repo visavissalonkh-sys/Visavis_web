@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
           date: parsedDate,
           timeFrom,
           timeTo,
+          comment,
           status: "pending",
           paymentStatus: "not_required",
           createdVia: "web",

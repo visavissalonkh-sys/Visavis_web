@@ -202,6 +202,7 @@ model Booking {
   date          DateTime      @db.Date
   timeFrom      String        @map("time_from")
   timeTo        String        @map("time_to")
+  comment       String?
   status        BookingStatus @default(pending)
   paymentStatus PaymentStatus @default(not_required) @map("payment_status")
   createdVia    BookingSource @default(web) @map("created_via")
