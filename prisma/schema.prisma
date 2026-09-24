@@ -57,6 +57,7 @@ enum NotificationType {
   confirmation
   reminder_24h
   reminder_2h
+  reminder_1h_master
   cancelled
 }
 
