@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "forbidden_origin" }, { status: 403 });
   }
 
-  const ip = getClientIp(request);
+  const ip = getClientIp(request.headers);
   const limit = await rateLimit(`booking:lock:ip:${ip}`, 20, 60);
   if (!limit.success) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });

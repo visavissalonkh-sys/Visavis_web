@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/request-ip";
 
 // Next.js 16 renamed `middleware.ts` to `proxy.ts` (same mechanics, new name)
 // and defaults it to the Node.js runtime (not Edge) — confirmed against
@@ -14,8 +16,13 @@ import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 // headers below, however, are NOT just UX — they're applied here (rather
 // than next.config.ts) specifically because the CSP nonce must be generated
 // fresh per request, which only middleware can do.
-const AUTH_GUARDED_PREFIXES = ["/account", "/master"];
+const AUTH_GUARDED_PREFIXES = ["/account", "/master", "/admin"];
 const AUTH_GUARDED_EXACT = new Set(["/booking/success"]);
+
+// Zero-Trust level 1 (of 3 — see lib/admin.ts for level 2, the route-level
+// requireAdmin re-check). Global cap on /admin/* regardless of auth state,
+// so it also throttles unauthenticated probing, not just legitimate admins.
+const ADMIN_RATE_LIMIT_PER_MINUTE = 100;
 
 // Segment-aware: "/master" must match "/master" or "/master/…" but never
 // "/masters/…" (the public masters listing/profile pages). A plain
@@ -69,6 +76,17 @@ export async function proxy(request: NextRequest) {
   const csp = buildCsp(nonce);
   const pathname = request.nextUrl.pathname;
 
+  if (matchesPrefix(pathname, "/admin")) {
+    const ip = getClientIp(request.headers);
+    const limit = await rateLimit(`admin:ip:${ip}`, ADMIN_RATE_LIMIT_PER_MINUTE, 60);
+    if (!limit.success) {
+      return applySecurityHeaders(
+        NextResponse.json({ error: "rate_limited" }, { status: 429 }),
+        csp,
+      );
+    }
+  }
+
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await verifySessionToken(token) : null;
 
@@ -80,6 +98,14 @@ export async function proxy(request: NextRequest) {
   }
 
   if (matchesPrefix(pathname, "/master") && session && session.role !== "master") {
+    return applySecurityHeaders(NextResponse.redirect(new URL("/account", request.url)), csp);
+  }
+
+  // Hard check, not "admin or higher" — there is no "higher". A session
+  // whose JWT still claims role=admin after a demotion is caught here too,
+  // since verifySessionToken already rejects a token blacklisted or version-
+  // bumped by blacklistUserJWTs (lib/admin.ts) on that demotion.
+  if (matchesPrefix(pathname, "/admin") && session && session.role !== "admin") {
     return applySecurityHeaders(NextResponse.redirect(new URL("/account", request.url)), csp);
   }
 

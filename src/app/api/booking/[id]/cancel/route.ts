@@ -21,7 +21,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/bookin
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const ip = getClientIp(request);
+  const ip = getClientIp(request.headers);
   const limit = await rateLimit(`booking:cancel:user:${session.sub}`, 20, 600);
   if (!limit.success) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });

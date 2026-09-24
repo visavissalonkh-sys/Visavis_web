@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const ip = getClientIp(request);
+  const ip = getClientIp(request.headers);
   const limit = await rateLimit(`booking:create:user:${session.sub}`, 10, 600);
   if (!limit.success) {
     return NextResponse.json({ error: "rate_limited", message: "Забагато спроб. Спробуйте пізніше." }, { status: 429 });

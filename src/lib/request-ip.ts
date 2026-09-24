@@ -1,5 +1,3 @@
-import type { NextRequest } from "next/server";
-
 /**
  * `X-Forwarded-For` is a comma-separated hop chain, left-to-right in the
  * order each proxy *received* the request — so the leftmost entry is
@@ -10,12 +8,17 @@ import type { NextRequest } from "next/server";
  * only hop worth trusting here, since there's exactly one proxy in front
  * of this app. If that topology ever changes (e.g. an additional CDN in
  * front of Railway), this needs to trust the Nth-from-right hop instead.
+ *
+ * Takes a plain `Headers` (not `NextRequest`) so the same logic works both
+ * in proxy.ts (`request.headers`) and in Server Components, which only get
+ * `headers()` from "next/headers" — e.g. the /admin layout's IP/User-Agent
+ * access logging.
  */
-export function getClientIp(request: NextRequest): string {
-  const forwardedFor = request.headers.get("x-forwarded-for");
+export function getClientIp(headers: Headers): string {
+  const forwardedFor = headers.get("x-forwarded-for");
   if (forwardedFor) {
     const hops = forwardedFor.split(",").map((ip) => ip.trim()).filter(Boolean);
     if (hops.length > 0) return hops[hops.length - 1];
   }
-  return request.headers.get("x-real-ip") ?? "unknown";
+  return headers.get("x-real-ip") ?? "unknown";
 }

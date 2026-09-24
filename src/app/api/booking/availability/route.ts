@@ -6,7 +6,7 @@ import { availabilityQuerySchema } from "@/lib/validation/booking";
 import { getClientIp } from "@/lib/request-ip";
 
 export async function GET(request: NextRequest) {
-  const ip = getClientIp(request);
+  const ip = getClientIp(request.headers);
   const limit = await rateLimit(`booking:availability:ip:${ip}`, 60, 60);
   if (!limit.success) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });

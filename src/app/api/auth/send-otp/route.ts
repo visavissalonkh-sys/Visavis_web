@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "forbidden_origin" }, { status: 403 });
   }
 
-  const ip = getClientIp(request);
+  const ip = getClientIp(request.headers);
   const json = await request.json().catch(() => null);
   const parsed = sendOtpSchema.safeParse(json);
 
