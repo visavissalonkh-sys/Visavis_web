@@ -22,6 +22,10 @@ export function minutesToTime(total: number): string {
   return `${h}:${m}`;
 }
 
+export function addMinutesToTime(time: string, minutes: number): string {
+  return minutesToTime(timeToMinutes(time) + minutes);
+}
+
 /** Parses "YYYY-MM-DD" as a UTC midnight Date — matches Prisma's `@db.Date` columns. */
 export function parseDateOnly(date: string): Date {
   return new Date(`${date}T00:00:00.000Z`);

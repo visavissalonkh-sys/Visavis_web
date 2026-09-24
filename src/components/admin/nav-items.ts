@@ -1,3 +1,6 @@
 // Grows one entry per subblock as each /admin/* page actually lands —
 // no point linking to a route that 404s.
-export const ADMIN_NAV_ITEMS = [{ href: "/admin", label: "Дашборд", icon: "◆" }] as const;
+export const ADMIN_NAV_ITEMS = [
+  { href: "/admin", label: "Дашборд", icon: "◆" },
+  { href: "/admin/bookings", label: "Записи", icon: "📋" },
+] as const;
