@@ -74,9 +74,10 @@ model User {
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  master   Master?
-  bookings Booking[]
-  reviews  Review[]
+  master    Master?
+  bookings  Booking[]
+  reviews   Review[]
+  favorites Favorite[]
 
   @@map("users")
 }
@@ -140,6 +141,7 @@ model Master {
   availabilityOverrides MasterAvailabilityOverride[]
   bookings              Booking[]
   reviews               Review[]
+  favoritedBy           Favorite[]
 
   @@map("masters")
 }
@@ -245,6 +247,23 @@ model Review {
   @@index([masterId])
   @@index([isPublished])
   @@map("reviews")
+}
+
+// A client's saved/bookmarked masters — surfaced in /account/favorites and
+// the bot's "⭐ Обрані майстри" panel, and used to prefill the quick-booking
+// shortcut when a client has no upcoming visit.
+model Favorite {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId  String   @map("client_id") @db.Uuid
+  masterId  String   @map("master_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  client User   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  master Master @relation(fields: [masterId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, masterId])
+  @@index([masterId])
+  @@map("favorites")
 }
 
 // Dedup log so the reminder scheduler (Redis-backed queue) never double-sends.
