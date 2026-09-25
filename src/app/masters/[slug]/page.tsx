@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
@@ -89,10 +90,9 @@ export default async function MasterPage({
       </Link>
 
       <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
-        <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
+        <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
           {master.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- Cloudinary URL
-            <img src={master.avatarUrl} alt={master.name} className="h-full w-full object-cover" />
+            <Image src={master.avatarUrl} alt={master.name} fill sizes="96px" className="object-cover" priority />
           ) : (
             <span className="font-display text-2xl text-accent">{initials(master.name)}</span>
           )}

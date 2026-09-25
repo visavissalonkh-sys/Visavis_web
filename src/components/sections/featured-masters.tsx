@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -46,10 +47,9 @@ export function FeaturedMasters({ masters }: { masters: FeaturedMaster[] }) {
                 href={`/masters/${master.slug}`}
                 className="group flex h-full flex-col gap-6 rounded-3xl border border-border bg-surface p-7 transition-colors duration-300 hover:border-accent-border hover:bg-surface-2"
               >
-                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
+                <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
                   {master.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- Cloudinary URL
-                    <img src={master.avatarUrl} alt={master.name} className="h-full w-full object-cover" />
+                    <Image src={master.avatarUrl} alt={master.name} fill sizes="64px" className="object-cover" />
                   ) : (
                     <span className="font-display text-lg text-accent">{initials(master.name)}</span>
                   )}

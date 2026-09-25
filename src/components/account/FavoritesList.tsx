@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import type { FavoritesList as FavoritesListData } from "@/lib/account";
 import { ButtonAction, Button } from "@/components/ui/button";
@@ -39,10 +40,9 @@ export function FavoritesList({ initialFavorites }: { initialFavorites: Favorite
           className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5 sm:flex-row sm:items-center sm:justify-between"
         >
           <Link href={`/masters`} className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
+            <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
               {f.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- Cloudinary URL
-                <img src={f.avatarUrl} alt={f.name} className="h-full w-full object-cover" />
+                <Image src={f.avatarUrl} alt={f.name} fill sizes="56px" className="object-cover" />
               ) : (
                 <span className="font-display text-accent">{initials(f.name)}</span>
               )}

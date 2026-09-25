@@ -48,6 +48,7 @@ export function AccountDashboard({ data }: { data: DashboardData }) {
                   alt={data.nextBooking.master.name}
                   width={56}
                   height={56}
+                  priority
                   className="h-14 w-14 rounded-full object-cover"
                 />
               ) : (

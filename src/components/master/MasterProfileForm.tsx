@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import { ButtonAction } from "@/components/ui/button";
 import { AvatarUploader } from "@/components/master/AvatarUploader";
 
@@ -152,10 +153,9 @@ export function MasterProfileForm({
           Так виглядає на /masters/{initialProfile.slug}
         </span>
         <div className="flex flex-col gap-5 rounded-3xl border border-border bg-surface p-7">
-          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
+          <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
             {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatarUrl} alt={name} className="h-full w-full object-cover" />
+              <Image src={avatarUrl} alt={name} fill sizes="64px" className="object-cover" />
             ) : (
               <span className="font-display text-lg text-accent">{initials(name)}</span>
             )}

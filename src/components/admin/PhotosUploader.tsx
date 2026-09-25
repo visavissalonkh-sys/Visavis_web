@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRef, useState } from "react";
 
 export function PhotosUploader({
@@ -66,8 +67,7 @@ export function PhotosUploader({
         <div className="flex flex-wrap gap-3">
           {photoUrls.map((url) => (
             <div key={url} className="relative h-20 w-20 overflow-hidden rounded-xl border border-border">
-              {/* eslint-disable-next-line @next/next/no-img-element -- Cloudinary URL */}
-              <img src={url} alt="" className="h-full w-full object-cover" />
+              <Image src={url} alt="Завантажене фото" fill sizes="80px" className="object-cover" />
               <button
                 type="button"
                 onClick={() => remove(url)}

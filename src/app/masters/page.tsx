@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -38,7 +39,7 @@ export default async function MastersPage() {
       />
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {masters.map((master) => {
+        {masters.map((master, index) => {
           const primaryCategorySlug = master.specialties[0]?.service.category;
           const primaryCategory = categories.find((c) => c.slug === primaryCategorySlug)?.name;
           const masterLocations = master.masterLocations.map((ml) => ml.location);
@@ -49,10 +50,16 @@ export default async function MastersPage() {
               href={`/masters/${master.slug}`}
               className="flex flex-col gap-5 rounded-3xl border border-border bg-surface p-7 transition-colors hover:border-accent-border hover:bg-surface-2"
             >
-              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
+              <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
                 {master.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- Cloudinary URL
-                  <img src={master.avatarUrl} alt={master.name} className="h-full w-full object-cover" />
+                  <Image
+                    src={master.avatarUrl}
+                    alt={master.name}
+                    fill
+                    sizes="64px"
+                    className="object-cover"
+                    priority={index < 3}
+                  />
                 ) : (
                   <span className="font-display text-lg text-accent">{initials(master.name)}</span>
                 )}

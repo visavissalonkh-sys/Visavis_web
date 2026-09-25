@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AdminMastersList as AdminMastersListData } from "@/lib/admin";
@@ -42,10 +43,9 @@ export function AdminMastersList({ initialMasters }: { initialMasters: AdminMast
           className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
+            <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
               {m.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- Cloudinary URL
-                <img src={m.avatarUrl} alt={m.name} className="h-full w-full object-cover" />
+                <Image src={m.avatarUrl} alt={m.name} fill sizes="56px" className="object-cover" />
               ) : (
                 <span className="font-display text-accent">{initials(m.name)}</span>
               )}
