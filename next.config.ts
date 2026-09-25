@@ -11,6 +11,8 @@ import path from "node:path";
 process.env.TZ = "UTC";
 
 const nextConfig: NextConfig = {
+  // Don't hand a probing attacker a free "this is Next.js" signal.
+  poweredByHeader: false,
   turbopack: {
     root: path.join(__dirname),
   },
