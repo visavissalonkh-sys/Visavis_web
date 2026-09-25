@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSession } from "@/lib/auth";
 import { deleteOverride, getMasterForSession, logMasterAudit } from "@/lib/master";
 import { isTrustedOrigin } from "@/lib/csrf";
+import { isValidUuid } from "@/lib/validation/common";
 
 export async function DELETE(
   request: NextRequest,
@@ -20,6 +21,9 @@ export async function DELETE(
   if (!master) return NextResponse.json({ error: "not_a_master" }, { status: 403 });
 
   const { id } = await ctx.params;
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: "invalid_input", message: "Невірний ідентифікатор" }, { status: 400 });
+  }
   const deleted = await deleteOverride(master.id, id);
   if (!deleted) return NextResponse.json({ error: "not_found" }, { status: 404 });
 

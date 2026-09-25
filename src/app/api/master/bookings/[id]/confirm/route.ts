@@ -7,6 +7,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { sendTelegramMessage } from "@/lib/notifications";
 import { formatBookingDateTimeUk } from "@/lib/booking";
 import { queueSheetsSync } from "@/lib/sheets";
+import { isValidUuid } from "@/lib/validation/common";
 
 export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/master/bookings/[id]/confirm">) {
   if (!isTrustedOrigin(request)) {
@@ -27,6 +28,9 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/master
   }
 
   const { id } = await ctx.params;
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: "invalid_input", message: "Невірний ідентифікатор" }, { status: 400 });
+  }
   const booking = await getOwnedBooking(master.id, id);
   if (!booking) return NextResponse.json({ error: "not_found" }, { status: 404 });
 

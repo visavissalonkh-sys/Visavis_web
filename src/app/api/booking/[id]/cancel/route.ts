@@ -10,6 +10,7 @@ import { sendTelegramMessage } from "@/lib/notifications";
 import { logAuthEvent } from "@/lib/audit-log";
 import { queueSheetsSync } from "@/lib/sheets";
 import { notifyAdmins } from "@/lib/alerts";
+import { isValidUuid } from "@/lib/validation/common";
 
 const MIN_HOURS_BEFORE_CANCEL = 2;
 
@@ -30,6 +31,9 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/bookin
   }
 
   const { id } = await ctx.params;
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: "invalid_input", message: "Невірний ідентифікатор" }, { status: 400 });
+  }
 
   const booking = await prisma.booking.findUnique({
     where: { id },

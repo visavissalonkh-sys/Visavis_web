@@ -9,6 +9,7 @@ import { sendTelegramMessage } from "@/lib/notifications";
 import { formatBookingDateTimeUk } from "@/lib/booking";
 import { cancelReminders } from "@/lib/reminders";
 import { queueSheetsSync } from "@/lib/sheets";
+import { isValidUuid } from "@/lib/validation/common";
 
 const rejectSchema = z.object({ reason: z.string().trim().max(300).optional() });
 
@@ -31,6 +32,9 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/master
   }
 
   const { id } = await ctx.params;
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: "invalid_input", message: "Невірний ідентифікатор" }, { status: 400 });
+  }
   const booking = await getOwnedBooking(master.id, id);
   if (!booking) return NextResponse.json({ error: "not_found" }, { status: 404 });
 

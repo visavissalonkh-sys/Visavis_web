@@ -12,6 +12,7 @@ import { adminServiceInputSchema, adminSetActiveSchema } from "@/lib/validation/
 import { isTrustedOrigin } from "@/lib/csrf";
 import { rateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/request-ip";
+import { isValidUuid } from "@/lib/validation/common";
 
 export async function GET(_request: Request, ctx: RouteContext<"/api/admin/services/[id]">) {
   try {
@@ -22,6 +23,9 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/admin/servi
   }
 
   const { id } = await ctx.params;
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: "invalid_input", message: "Невірний ідентифікатор" }, { status: 400 });
+  }
   try {
     const detail = await getAdminServiceDetail(id);
     return NextResponse.json(detail);
@@ -50,6 +54,9 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
   }
 
   const { id } = await ctx.params;
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: "invalid_input", message: "Невірний ідентифікатор" }, { status: 400 });
+  }
   const json = await request.json().catch(() => null);
   const ip = getClientIp(request.headers);
   const userAgent = request.headers.get("user-agent");

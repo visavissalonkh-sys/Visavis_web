@@ -4,6 +4,7 @@ import { adminBookingStatusSchema } from "@/lib/validation/admin";
 import { isTrustedOrigin } from "@/lib/csrf";
 import { rateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/request-ip";
+import { isValidUuid } from "@/lib/validation/common";
 
 export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/bookings/[id]/status">) {
   if (!isTrustedOrigin(request)) {
@@ -30,6 +31,9 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
   }
 
   const { id } = await ctx.params;
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: "invalid_input", message: "Невірний ідентифікатор" }, { status: 400 });
+  }
   const ip = getClientIp(request.headers);
   const userAgent = request.headers.get("user-agent");
 

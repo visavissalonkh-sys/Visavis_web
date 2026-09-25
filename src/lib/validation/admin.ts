@@ -147,3 +147,7 @@ export const adminAuditQuerySchema = z.object({
   dateTo: dateOnly.optional(),
   page: z.coerce.number().int().min(1).optional(),
 });
+
+export const adminUploadSignatureSchema = z.object({
+  purpose: z.enum(["service", "location"]),
+});

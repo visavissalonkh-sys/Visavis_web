@@ -1,11 +1,17 @@
 import crypto from "node:crypto";
 import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { uk } from "date-fns/locale";
 import { prisma } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
 
 export const SLOT_INTERVAL_MINUTES = 30;
 export const LOCK_TTL_SECONDS = 600; // 10 minutes
+
+// Duplicated from lib/timezone.ts's SALON_TIMEZONE, not imported — that file
+// imports parseDateOnly from this one, so importing it back here would be
+// circular.
+const SALON_TZ = "Europe/Kyiv";
 
 export type Range = [number, number]; // minutes from midnight
 
@@ -83,6 +89,14 @@ export async function getAvailableSlots({
    */
   ignoreLockToken?: string;
 }): Promise<string[]> {
+  // Business-logic guard against booking into the past — this is the single
+  // choke point every caller (availability check, lock-slot, and booking
+  // creation's own re-check) goes through, so fixing it here closes the gap
+  // everywhere at once rather than duplicating the check per route.
+  const todayStr = formatInTimeZone(new Date(), SALON_TZ, "yyyy-MM-dd");
+  const dateStr = formatDateOnly(date);
+  if (dateStr < todayStr) return [];
+
   const weekday = date.getUTCDay();
 
   const [override, schedule] = await Promise.all([
@@ -104,12 +118,20 @@ export async function getAvailableSlots({
   }
   if (ranges.length === 0) return [];
 
-  const candidates: number[] = [];
+  let candidates: number[] = [];
   for (const [rangeStart, rangeEnd] of ranges) {
     for (let t = rangeStart; t + durationMinutes <= rangeEnd; t += SLOT_INTERVAL_MINUTES) {
       candidates.push(t);
     }
   }
+
+  // Same-day booking: a slot whose start time has already passed isn't
+  // "available" just because the schedule technically covers it.
+  if (dateStr === todayStr) {
+    const nowMinutes = timeToMinutes(formatInTimeZone(new Date(), SALON_TZ, "HH:mm"));
+    candidates = candidates.filter((t) => t > nowMinutes);
+  }
+
   if (candidates.length === 0) return [];
 
   // A master can only be in one place — bookings block across all their locations that day.
@@ -122,7 +144,6 @@ export async function getAvailableSlots({
     timeToMinutes(b.timeTo),
   ]);
 
-  const dateStr = formatDateOnly(date);
   const lockValues =
     candidates.length > 0
       ? await redis.mget(...candidates.map((t) => lockKey(masterId, dateStr, minutesToTime(t))))

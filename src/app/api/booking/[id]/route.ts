@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { isValidUuid } from "@/lib/validation/common";
 
 export async function GET(_request: Request, ctx: RouteContext<"/api/booking/[id]">) {
   const session = await getSession();
@@ -9,6 +10,9 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/booking/[id
   }
 
   const { id } = await ctx.params;
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: "invalid_input", message: "Невірний ідентифікатор" }, { status: 400 });
+  }
 
   const booking = await prisma.booking.findUnique({
     where: { id },

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSession } from "@/lib/auth";
 import { removeFavorite } from "@/lib/account";
 import { isTrustedOrigin } from "@/lib/csrf";
+import { isValidUuid } from "@/lib/validation/common";
 
 export async function DELETE(request: NextRequest, ctx: RouteContext<"/api/account/favorites/[masterId]">) {
   if (!isTrustedOrigin(request)) {
@@ -14,6 +15,9 @@ export async function DELETE(request: NextRequest, ctx: RouteContext<"/api/accou
   }
 
   const { masterId } = await ctx.params;
+  if (!isValidUuid(masterId)) {
+    return NextResponse.json({ error: "invalid_input", message: "Невірний ідентифікатор" }, { status: 400 });
+  }
   await removeFavorite(session.sub, masterId);
   return NextResponse.json({ success: true });
 }

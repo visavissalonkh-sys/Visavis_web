@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getBookingDetail } from "@/lib/account";
+import { isValidUuid } from "@/lib/validation/common";
 
 export async function GET(_request: Request, ctx: RouteContext<"/api/account/bookings/[id]">) {
   const session = await getSession();
@@ -9,6 +10,9 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/account/boo
   }
 
   const { id } = await ctx.params;
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: "invalid_input", message: "Невірний ідентифікатор" }, { status: 400 });
+  }
   const booking = await getBookingDetail(session.sub, id);
   if (!booking) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });

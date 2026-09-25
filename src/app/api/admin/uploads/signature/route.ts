@@ -4,8 +4,7 @@ import { signCloudinaryParams } from "@/lib/cloudinary";
 import { rateLimit } from "@/lib/rate-limit";
 import { isTrustedOrigin } from "@/lib/csrf";
 import { requireEnv } from "@/lib/env";
-
-const ALLOWED_PURPOSES = new Set(["service", "location"]);
+import { adminUploadSignatureSchema } from "@/lib/validation/admin";
 
 /** Generic signed-upload endpoint for the admin panel's multi-photo fields
  * (services, locations) — `purpose` picks the Cloudinary folder server-side
@@ -29,13 +28,13 @@ export async function POST(request: NextRequest) {
   }
 
   const json = await request.json().catch(() => null);
-  const purpose = json && typeof json.purpose === "string" && ALLOWED_PURPOSES.has(json.purpose) ? json.purpose : null;
-  if (!purpose) {
+  const parsed = adminUploadSignatureSchema.safeParse(json);
+  if (!parsed.success) {
     return NextResponse.json({ error: "invalid_input", message: "Невірне призначення завантаження" }, { status: 400 });
   }
 
   const timestamp = Math.floor(Date.now() / 1000);
-  const folder = `visavis/${purpose}s/uploads`;
+  const folder = `visavis/${parsed.data.purpose}s/uploads`;
   const signature = signCloudinaryParams({ timestamp, folder });
 
   return NextResponse.json({

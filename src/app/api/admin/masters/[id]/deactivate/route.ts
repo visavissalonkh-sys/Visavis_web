@@ -12,6 +12,7 @@ import { deactivateMasterSchema } from "@/lib/validation/admin";
 import { isTrustedOrigin } from "@/lib/csrf";
 import { rateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/request-ip";
+import { isValidUuid } from "@/lib/validation/common";
 
 /** GET so the confirmation UI can show "У майстра є N активних записів"
  * before the admin even picks cancel-all vs leave-them. */
@@ -24,6 +25,9 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/admin/maste
   }
 
   const { id } = await ctx.params;
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: "invalid_input", message: "Невірний ідентифікатор" }, { status: 400 });
+  }
   const activeBookingsCount = await getActiveMasterBookingsCount(id);
   return NextResponse.json({ activeBookingsCount });
 }
@@ -62,6 +66,9 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/
   }
 
   const { id } = await ctx.params;
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: "invalid_input", message: "Невірний ідентифікатор" }, { status: 400 });
+  }
   const ip = getClientIp(request.headers);
   const userAgent = request.headers.get("user-agent");
 
