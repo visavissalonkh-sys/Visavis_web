@@ -19,6 +19,7 @@ import {
 import { scheduleReminders, visitStartsAt } from "@/lib/reminders";
 import { sendTelegramMessage } from "@/lib/notifications";
 import { logAuthEvent } from "@/lib/audit-log";
+import { queueSheetsSync } from "@/lib/sheets";
 
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
 
     const visitAt = visitStartsAt(parsedDate, timeFrom);
     await scheduleReminders(booking.id, visitAt);
+    await queueSheetsSync(booking.id, "created");
 
     const client = await prisma.user.findUnique({ where: { id: session.sub } });
     const whenText = formatBookingDateTimeUk(parsedDate, timeFrom);

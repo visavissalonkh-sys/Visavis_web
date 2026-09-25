@@ -136,6 +136,10 @@ export const adminReportExportSchema = z.object({
   status: bookingStatus.optional(),
 });
 
+export const adminBookingStatusSchema = z.object({
+  status: bookingStatus,
+});
+
 export const adminAuditQuerySchema = z.object({
   actorId: uuid.optional(),
   action: z.string().trim().max(100).optional(),

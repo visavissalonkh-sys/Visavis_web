@@ -28,6 +28,7 @@ import {
 } from "@/lib/master";
 import { generateOtpCode, storeOtp, verifyOtp, type VerifyOtpResult } from "@/lib/otp";
 import { slugify, ensureUniqueSlug } from "@/lib/slug";
+import { queueSheetsSync } from "@/lib/sheets";
 import { STATUS_LABELS } from "@/components/master/status-badge";
 
 export { InvalidScheduleError };
@@ -415,6 +416,7 @@ export async function cancelAdminBooking(
   const oldStatus = booking.status;
   await prisma.booking.update({ where: { id: bookingId }, data: { status: "cancelled" } });
   await cancelReminders(bookingId);
+  await queueSheetsSync(bookingId, "cancelled");
 
   const whenText = formatBookingDateTimeUk(booking.date, booking.timeFrom);
 
@@ -438,6 +440,65 @@ export async function cancelAdminBooking(
     entityId: bookingId,
     oldValue: { status: oldStatus },
     newValue: { status: "cancelled" },
+    ip,
+    userAgent,
+  });
+
+  return booking;
+}
+
+const INACTIVE_STATUSES: BookingStatus[] = ["cancelled", "no_show"];
+
+/**
+ * A generic manual override, separate from cancelAdminBooking above — that
+ * one is specifically "cancel and notify both sides" and stays the primary
+ * path; this one lets an admin correct a booking into ANY status (fixing a
+ * mis-marked no_show, manually completing a walk-in that was never
+ * confirmed online, etc). Only a transition INTO cancelled/no_show cancels
+ * pending reminders — moving back OUT of one does not reschedule them, since
+ * this is a correction tool, not a re-booking flow.
+ */
+export async function updateAdminBookingStatus(
+  bookingId: string,
+  newStatus: BookingStatus,
+  admin: AdminContext,
+  ip: string,
+  userAgent: string | null,
+) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { client: true, master: { include: { user: true } }, service: true, location: true },
+  });
+  if (!booking) throw new BookingNotFoundError();
+
+  const oldStatus = booking.status;
+  if (oldStatus === newStatus) return booking;
+
+  await prisma.booking.update({ where: { id: bookingId }, data: { status: newStatus } });
+
+  const wasActive = !INACTIVE_STATUSES.includes(oldStatus);
+  const nowInactive = INACTIVE_STATUSES.includes(newStatus);
+  if (wasActive && nowInactive) {
+    await cancelReminders(bookingId);
+  }
+
+  if (newStatus === "cancelled" && booking.client.telegramId) {
+    const whenText = formatBookingDateTimeUk(booking.date, booking.timeFrom);
+    sendTelegramMessage(
+      booking.client.telegramId.toString(),
+      `Ваш запис на ${whenText} скасовано адміністрацією. Перепрошуємо за незручності — оберіть, будь ласка, інший час на сайті.`,
+    ).catch((error) => console.error("Failed to notify client of admin status change", error));
+  }
+
+  await queueSheetsSync(bookingId, "status_changed");
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: "admin_booking_status_changed",
+    entityType: "booking",
+    entityId: bookingId,
+    oldValue: { status: oldStatus },
+    newValue: { status: newStatus },
     ip,
     userAgent,
   });

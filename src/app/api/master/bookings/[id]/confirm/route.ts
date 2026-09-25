@@ -6,6 +6,7 @@ import { isTrustedOrigin } from "@/lib/csrf";
 import { rateLimit } from "@/lib/rate-limit";
 import { sendTelegramMessage } from "@/lib/notifications";
 import { formatBookingDateTimeUk } from "@/lib/booking";
+import { queueSheetsSync } from "@/lib/sheets";
 
 export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/master/bookings/[id]/confirm">) {
   if (!isTrustedOrigin(request)) {
@@ -34,6 +35,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/master
   }
 
   await prisma.booking.update({ where: { id }, data: { status: "confirmed" } });
+  await queueSheetsSync(id, "status_changed");
   await logMasterAudit({ actorId: session.sub, action: "booking_confirmed", entityType: "booking", entityId: id });
 
   if (booking.client.telegramId) {

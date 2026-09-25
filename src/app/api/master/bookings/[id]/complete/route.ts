@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { getMasterForSession, getOwnedBooking, logMasterAudit } from "@/lib/master";
 import { isTrustedOrigin } from "@/lib/csrf";
 import { rateLimit } from "@/lib/rate-limit";
+import { queueSheetsSync } from "@/lib/sheets";
 
 export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/master/bookings/[id]/complete">) {
   if (!isTrustedOrigin(request)) {
@@ -35,6 +36,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/master
   }
 
   await prisma.booking.update({ where: { id }, data: { status: "completed" } });
+  await queueSheetsSync(id, "status_changed");
   await logMasterAudit({ actorId: session.sub, action: "booking_completed", entityType: "booking", entityId: id });
 
   return NextResponse.json({ success: true });

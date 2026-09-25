@@ -8,6 +8,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { sendTelegramMessage } from "@/lib/notifications";
 import { formatBookingDateTimeUk } from "@/lib/booking";
 import { cancelReminders } from "@/lib/reminders";
+import { queueSheetsSync } from "@/lib/sheets";
 
 const rejectSchema = z.object({ reason: z.string().trim().max(300).optional() });
 
@@ -43,6 +44,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/master
 
   await prisma.booking.update({ where: { id }, data: { status: "cancelled" } });
   await cancelReminders(id);
+  await queueSheetsSync(id, "cancelled");
   await logMasterAudit({
     actorId: session.sub,
     action: "booking_rejected",

@@ -8,6 +8,7 @@ import { formatBookingDateTimeUk, parseDateOnly } from "@/lib/booking";
 import { cancelReminders, visitStartsAt } from "@/lib/reminders";
 import { sendTelegramMessage } from "@/lib/notifications";
 import { logAuthEvent } from "@/lib/audit-log";
+import { queueSheetsSync } from "@/lib/sheets";
 
 const MIN_HOURS_BEFORE_CANCEL = 2;
 
@@ -64,6 +65,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/bookin
 
   await prisma.booking.update({ where: { id }, data: { status: "cancelled" } });
   await cancelReminders(booking.id);
+  await queueSheetsSync(booking.id, "cancelled");
 
   logAuthEvent({ action: "booking_cancelled", ip, phone: session.phone, bookingId: booking.id });
 
