@@ -24,12 +24,22 @@ export function AdminLocationForm({
 }: {
   mode: "create" | "edit";
   locationId?: string;
-  initial?: { name: string; address: string; phone: string; workingHours: WorkingHours; photoUrls: string[] };
+  initial?: {
+    name: string;
+    address: string;
+    phone: string;
+    workingHours: WorkingHours;
+    photoUrls: string[];
+    latitude?: number | null;
+    longitude?: number | null;
+  };
 }) {
   const router = useRouter();
   const [name, setName] = useState(initial?.name ?? "");
   const [address, setAddress] = useState(initial?.address ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
+  const [latitude, setLatitude] = useState(initial?.latitude != null ? String(initial.latitude) : "");
+  const [longitude, setLongitude] = useState(initial?.longitude != null ? String(initial.longitude) : "");
   const [workingHours, setWorkingHours] = useState<WorkingHours>(initial?.workingHours ?? closedWeek());
   const [photoUrls, setPhotoUrls] = useState<string[]>(initial?.photoUrls ?? []);
   const [saving, setSaving] = useState(false);
@@ -46,9 +56,28 @@ export function AdminLocationForm({
       return;
     }
 
+    const lat = latitude.trim() ? Number(latitude.trim()) : null;
+    const lng = longitude.trim() ? Number(longitude.trim()) : null;
+    if ((lat !== null && (Number.isNaN(lat) || lat < -90 || lat > 90)) || (lng !== null && (Number.isNaN(lng) || lng < -180 || lng > 180))) {
+      setError("Координати некоректні (широта -90…90, довгота -180…180).");
+      return;
+    }
+    if ((lat === null) !== (lng === null)) {
+      setError("Вкажіть і широту, і довготу — або залиште обидва поля порожніми.");
+      return;
+    }
+
     setSaving(true);
     try {
-      const body = { name: name.trim(), address: address.trim(), phone: phone.trim(), workingHours, photoUrls };
+      const body = {
+        name: name.trim(),
+        address: address.trim(),
+        phone: phone.trim(),
+        workingHours,
+        photoUrls,
+        latitude: lat,
+        longitude: lng,
+      };
       const url = mode === "create" ? "/api/admin/locations" : `/api/admin/locations/${locationId}`;
       const res = await fetch(url, {
         method: mode === "create" ? "POST" : "PATCH",
@@ -99,6 +128,31 @@ export function AdminLocationForm({
           maxLength={300}
           className="rounded-xl border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-fg outline-none focus:border-accent"
         />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm text-fg-subtle">
+          Координати (для карти й SEO) <span className="text-fg-subtle">— необов&apos;язково</span>
+        </label>
+        <p className="text-xs text-fg-subtle">
+          Знайдіть точку на Google Maps, ПКМ на місці → перше число в контекстному меню це широта, друге — довгота.
+        </p>
+        <div className="flex gap-3">
+          <input
+            value={latitude}
+            onChange={(e) => setLatitude(e.target.value)}
+            placeholder="Широта, напр. 49.9935"
+            inputMode="decimal"
+            className="w-1/2 rounded-xl border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-fg outline-none focus:border-accent"
+          />
+          <input
+            value={longitude}
+            onChange={(e) => setLongitude(e.target.value)}
+            placeholder="Довгота, напр. 36.2304"
+            inputMode="decimal"
+            className="w-1/2 rounded-xl border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-fg outline-none focus:border-accent"
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">

@@ -1194,6 +1194,8 @@ export async function getAdminLocationsList() {
     workingHours: normalizeWorkingHours(l.workingHours),
     photoUrls: l.photoUrls,
     isActive: l.isActive,
+    latitude: l.latitude,
+    longitude: l.longitude,
   }));
 }
 
@@ -1208,6 +1210,8 @@ export async function getAdminLocationDetail(locationId: string) {
     workingHours: normalizeWorkingHours(location.workingHours),
     photoUrls: location.photoUrls,
     isActive: location.isActive,
+    latitude: location.latitude,
+    longitude: location.longitude,
   };
 }
 
@@ -1217,6 +1221,8 @@ export type AdminLocationInput = {
   phone: string;
   workingHours: WorkingHours;
   photoUrls: string[];
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 export async function createAdminLocation(
@@ -1238,6 +1244,8 @@ export async function createAdminLocation(
       phone: input.phone,
       workingHours: input.workingHours as unknown as Prisma.InputJsonValue,
       photoUrls: input.photoUrls,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
     },
   });
 
@@ -1272,6 +1280,8 @@ export async function updateAdminLocation(
       phone: input.phone,
       workingHours: input.workingHours as unknown as Prisma.InputJsonValue,
       photoUrls: input.photoUrls,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
     },
   });
 

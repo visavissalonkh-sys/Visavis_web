@@ -17,6 +17,8 @@ import { FavoriteToggleButton } from "@/components/account/FavoriteToggleButton"
 // per-request instead; fine at this traffic volume.
 export const dynamic = "force-dynamic";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://visavis.example";
+
 async function getMasterBySlug(slug: string) {
   return prisma.master.findFirst({
     where: { slug, isActive: true },
@@ -38,9 +40,11 @@ export async function generateMetadata({
   const master = await getMasterBySlug(slug);
   if (!master) return {};
 
+  const path = `/masters/${master.slug}`;
   return {
     title: master.name,
     description: master.bio ?? `${master.name} у мережі Visavis.`,
+    alternates: { canonical: path, languages: { "uk-UA": path } },
   };
 }
 
@@ -70,11 +74,28 @@ export default async function MasterPage({
     "@type": "Person",
     name: master.name,
     worksFor: { "@type": "BeautySalon", name: "Visavis" },
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: Number(master.ratingCached),
-      reviewCount: master._count.reviews,
-    },
+    // Only emitted when published reviews actually exist — an AggregateRating
+    // with reviewCount: 0 is invalid per schema.org and flagged by Google's
+    // Rich Results Test.
+    ...(master._count.reviews > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: Number(master.ratingCached),
+            reviewCount: master._count.reviews,
+          },
+        }
+      : {}),
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Головна", item: `${siteUrl}/` },
+      { "@type": "ListItem", position: 2, name: "Майстри", item: `${siteUrl}/masters` },
+      { "@type": "ListItem", position: 3, name: master.name, item: `${siteUrl}/masters/${master.slug}` },
+    ],
   };
 
   return (
@@ -83,6 +104,11 @@ export default async function MasterPage({
         type="application/ld+json"
         nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
 
       <Link href="/masters" className="text-sm text-fg-muted hover:text-fg">

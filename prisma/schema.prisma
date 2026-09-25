@@ -91,6 +91,14 @@ model Location {
   phone        String
   workingHours Json     @map("working_hours")
   photoUrls    String[] @map("photo_urls")
+  // Nullable on purpose — real coordinates aren't available until the
+  // client provides the actual street address (both locations still carry
+  // "адреса уточнюється" placeholder text as of Stage 6). The LocalBusiness
+  // JSON-LD's `geo` property is omitted entirely while these are null,
+  // rather than shipping fabricated coordinates that could misdirect a
+  // customer on Google Maps.
+  latitude     Float?
+  longitude    Float?
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")

@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   title: "Послуги",
   description:
     "Каталог послуг Visavis: волосся, нігті, косметологія, перманентний макіяж, масаж. Ціни, тривалість і запис онлайн.",
+  alternates: { canonical: "/services", languages: { "uk-UA": "/services" } },
 };
 
 export default function ServicesPage() {

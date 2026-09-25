@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Філії",
   description: "Філії Visavis у Харкові: адреси, графік роботи та контактні телефони.",
+  alternates: { canonical: "/locations", languages: { "uk-UA": "/locations" } },
 };
 
 export default async function LocationsPage() {

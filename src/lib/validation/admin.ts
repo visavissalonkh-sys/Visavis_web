@@ -115,6 +115,8 @@ export const adminLocationInputSchema = z.object({
   phone: z.string().trim().min(5).max(20),
   workingHours: workingHoursSchema,
   photoUrls: z.array(z.string().url()).max(10),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
 });
 
 export const adminReviewRejectSchema = z.object({

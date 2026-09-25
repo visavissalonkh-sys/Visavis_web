@@ -4,6 +4,8 @@ import { Inter, Playfair_Display } from "next/font/google";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { AuthModalProvider } from "@/components/auth/AuthModalProvider";
+import { prisma } from "@/lib/prisma";
+import { buildLocationJsonLd } from "@/lib/seo/local-business";
 import "./globals.css";
 
 const inter = Inter({
@@ -38,22 +40,11 @@ export const metadata: Metadata = {
   },
 };
 
-const localBusinessJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "BeautySalon",
-  name: "Visavis",
-  url: siteUrl,
-  image: `${siteUrl}/og-cover.jpg`,
-  sameAs: ["https://www.instagram.com/salon_vis_a_vis"],
-  address: {
-    "@type": "PostalAddress",
-    addressLocality: "Харків",
-    addressCountry: "UA",
-  },
-};
-
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+
+  const activeLocations = await prisma.location.findMany({ where: { isActive: true } });
+  const locationJsonLds = activeLocations.map((location) => buildLocationJsonLd(location, siteUrl));
 
   return (
     <html
@@ -61,11 +52,14 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${inter.variable} ${playfair.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-bg text-fg">
-        <script
-          type="application/ld+json"
-          nonce={nonce}
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
-        />
+        {locationJsonLds.map((jsonLd, index) => (
+          <script
+            key={index}
+            type="application/ld+json"
+            nonce={nonce}
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
+        ))}
         <AuthModalProvider>
           <SiteHeader />
           <main className="flex-1 pt-20">{children}</main>

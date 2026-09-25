@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Майстри",
   description: "Команда майстрів Visavis: стилісти, майстри манікюру, косметологи, PMU-майстри та масажисти.",
+  alternates: { canonical: "/masters", languages: { "uk-UA": "/masters" } },
 };
 
 function initials(name: string) {

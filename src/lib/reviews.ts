@@ -65,6 +65,36 @@ export async function createReview(
   }
 }
 
+export async function getAllPublishedReviews() {
+  const [reviews, aggregate] = await Promise.all([
+    prisma.review.findMany({
+      where: { isPublished: true },
+      include: { client: true, master: true, location: true },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+    prisma.review.aggregate({
+      where: { isPublished: true },
+      _avg: { rating: true },
+      _count: true,
+    }),
+  ]);
+
+  return {
+    reviews: reviews.map((r) => ({
+      id: r.id,
+      rating: r.rating,
+      text: r.text,
+      authorName: r.client.name ?? "Клієнтка",
+      masterName: r.master?.name ?? null,
+      locationName: r.location.name,
+      createdAt: r.createdAt.toISOString(),
+    })),
+    averageRating: aggregate._avg.rating ?? 0,
+    reviewCount: aggregate._count,
+  };
+}
+
 export async function getPublishedReviews({
   masterId,
   locationId,

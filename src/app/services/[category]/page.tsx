@@ -15,6 +15,8 @@ import { prisma } from "@/lib/prisma";
 // page can't be prerendered anyway.
 export const dynamic = "force-dynamic";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://visavis.example";
+
 export async function generateMetadata({
   params,
 }: {
@@ -24,9 +26,11 @@ export async function generateMetadata({
   const category = getCategory(slug);
   if (!category) return {};
 
+  const path = `/services/${slug}`;
   return {
     title: category.name,
     description: `${category.description} Записатися онлайн до майстрів Visavis у Харкові.`,
+    alternates: { canonical: path, languages: { "uk-UA": path } },
   };
 }
 
@@ -64,12 +68,27 @@ export default async function CategoryPage({
     },
   };
 
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Головна", item: `${siteUrl}/` },
+      { "@type": "ListItem", position: 2, name: "Послуги", item: `${siteUrl}/services` },
+      { "@type": "ListItem", position: 3, name: category.name, item: `${siteUrl}/services/${slug}` },
+    ],
+  };
+
   return (
     <Container className="flex flex-col gap-16 py-20">
       <script
         type="application/ld+json"
         nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
 
       <div className="flex flex-col gap-4">
