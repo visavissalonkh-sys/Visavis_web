@@ -1,4 +1,5 @@
-import { addDays, endOfMonth, endOfWeek, startOfMonth, startOfWeek, subDays } from "date-fns";
+import { addDays, differenceInCalendarDays, endOfMonth, endOfWeek, startOfMonth, startOfWeek, subDays } from "date-fns";
+import ExcelJS from "exceljs";
 import type { BookingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession, bumpTokenVersion, type SessionPayload } from "@/lib/auth";
@@ -27,6 +28,7 @@ import {
 } from "@/lib/master";
 import { generateOtpCode, storeOtp, verifyOtp, type VerifyOtpResult } from "@/lib/otp";
 import { slugify, ensureUniqueSlug } from "@/lib/slug";
+import { STATUS_LABELS } from "@/components/master/status-badge";
 
 export { InvalidScheduleError };
 
@@ -1340,4 +1342,216 @@ export async function unpublishReview(reviewId: string, admin: AdminContext, ip:
     ip,
     userAgent,
   });
+}
+
+// --- Analytics + xlsx export ------------------------------------------------
+
+export class InvalidDateRangeError extends Error {}
+
+const MAX_REPORT_RANGE_DAYS = 365;
+
+/** `to` is inclusive, so a same-day range has a diff of 0 — this only rejects
+ * a range that spans MORE than 365 distinct days. */
+function validateDateRange(from: Date, to: Date): void {
+  if (from > to) throw new InvalidDateRangeError();
+  if (differenceInCalendarDays(to, from) > MAX_REPORT_RANGE_DAYS) throw new InvalidDateRangeError();
+}
+
+/** `from`/`to` are UTC-midnight Dates (via parseDateOnly) — this must stay
+ * pure UTC arithmetic. date-fns' eachDayOfInterval walks LOCAL calendar
+ * days, which on a server running outside UTC (e.g. Europe/Kyiv, +2/+3)
+ * silently shifts every key back a day and drops the range's last day. */
+function utcDayKeys(from: Date, to: Date): string[] {
+  const keys: string[] = [];
+  const cursor = new Date(from);
+  while (cursor.getTime() <= to.getTime()) {
+    keys.push(formatDateOnly(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return keys;
+}
+
+export type AdminAnalytics = Awaited<ReturnType<typeof getAdminAnalytics>>;
+
+/**
+ * Everything the /admin/analytics charts need, in one query: per-day booking
+ * count + revenue (for the two line charts), top 10 masters/services by
+ * booking count (bar charts), and a created/completed/cancelled funnel.
+ *
+ * Revenue has no stored snapshot on Booking (payment integration is out of
+ * MVP scope, see the Transaction model's comment) — it's derived from the
+ * linked service's current `priceFrom`, counted only for `completed`
+ * bookings. If a service's price changes later, past revenue here shifts
+ * with it; that's an accepted simplification until real payment records
+ * exist.
+ */
+export async function getAdminAnalytics(fromStr: string, toStr: string) {
+  const from = parseDateOnly(fromStr);
+  const to = parseDateOnly(toStr);
+  validateDateRange(from, to);
+
+  const bookings = await prisma.booking.findMany({
+    where: { date: { gte: from, lte: to } },
+    select: {
+      date: true,
+      status: true,
+      masterId: true,
+      serviceId: true,
+      master: { select: { name: true } },
+      service: { select: { name: true, priceFrom: true } },
+    },
+  });
+
+  const dayKeys = utcDayKeys(from, to);
+  const bookingsByDay = new Map<string, number>(dayKeys.map((d) => [d, 0]));
+  const revenueByDay = new Map<string, number>(dayKeys.map((d) => [d, 0]));
+  const masterCounts = new Map<string, { name: string; count: number }>();
+  const serviceCounts = new Map<string, { name: string; count: number }>();
+  const funnel = { created: 0, completed: 0, cancelled: 0 };
+
+  for (const b of bookings) {
+    const dayKey = formatDateOnly(b.date);
+    bookingsByDay.set(dayKey, (bookingsByDay.get(dayKey) ?? 0) + 1);
+
+    funnel.created += 1;
+    if (b.status === "completed") {
+      funnel.completed += 1;
+      revenueByDay.set(dayKey, (revenueByDay.get(dayKey) ?? 0) + Number(b.service.priceFrom));
+    } else if (b.status === "cancelled" || b.status === "no_show") {
+      funnel.cancelled += 1;
+    }
+
+    const masterEntry = masterCounts.get(b.masterId) ?? { name: b.master.name, count: 0 };
+    masterEntry.count += 1;
+    masterCounts.set(b.masterId, masterEntry);
+
+    const serviceEntry = serviceCounts.get(b.serviceId) ?? { name: b.service.name, count: 0 };
+    serviceEntry.count += 1;
+    serviceCounts.set(b.serviceId, serviceEntry);
+  }
+
+  const topByCount = (m: Map<string, { name: string; count: number }>) =>
+    Array.from(m.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+  return {
+    days: dayKeys.map((date) => ({
+      date,
+      bookings: bookingsByDay.get(date) ?? 0,
+      revenue: revenueByDay.get(date) ?? 0,
+    })),
+    topMasters: topByCount(masterCounts),
+    topServices: topByCount(serviceCounts),
+    funnel,
+  };
+}
+
+export type AdminReportFilters = {
+  from: string;
+  to: string;
+  masterId?: string;
+  locationId?: string;
+  status?: BookingStatus;
+};
+
+/**
+ * Generates the xlsx buffer and logs the export in one call — export is a
+ * read-only action but still audit-worthy (who pulled client/booking data,
+ * for what range) per the pentest-readiness requirement.
+ */
+export async function generateAdminReportXlsx(
+  filters: AdminReportFilters,
+  admin: AdminContext,
+  ip: string,
+  userAgent: string | null,
+): Promise<{ buffer: Buffer; filename: string; rowCount: number }> {
+  const from = parseDateOnly(filters.from);
+  const to = parseDateOnly(filters.to);
+  validateDateRange(from, to);
+
+  const bookings = await prisma.booking.findMany({
+    where: {
+      date: { gte: from, lte: to },
+      masterId: filters.masterId || undefined,
+      locationId: filters.locationId || undefined,
+      status: filters.status || undefined,
+    },
+    include: { client: true, master: true, service: true, location: true },
+    orderBy: { date: "asc" },
+  });
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Visavis admin";
+  workbook.created = new Date();
+
+  const sheet = workbook.addWorksheet("Звіт");
+  sheet.columns = [
+    { header: "Дата", key: "date", width: 12 },
+    { header: "Час", key: "time", width: 14 },
+    { header: "Клієнт", key: "client", width: 24 },
+    { header: "Телефон", key: "phone", width: 16 },
+    { header: "Майстер", key: "master", width: 24 },
+    { header: "Послуга", key: "service", width: 28 },
+    { header: "Категорія", key: "category", width: 16 },
+    { header: "Філія", key: "location", width: 24 },
+    { header: "Статус", key: "status", width: 16 },
+    { header: "Джерело", key: "source", width: 10 },
+    { header: "Ціна, грн", key: "price", width: 12 },
+  ];
+  sheet.getRow(1).font = { bold: true };
+
+  let totalRevenue = 0;
+  for (const b of bookings) {
+    const price = Number(b.service.priceFrom);
+    if (b.status === "completed") totalRevenue += price;
+
+    sheet.addRow({
+      date: formatDateOnly(b.date),
+      time: `${b.timeFrom}–${b.timeTo}`,
+      client: b.client.name ?? b.client.phone,
+      phone: b.client.phone,
+      master: b.master.name,
+      service: b.service.name,
+      category: b.service.category,
+      location: b.location.name,
+      status: STATUS_LABELS[b.status] ?? b.status,
+      source: b.createdVia === "bot" ? "Бот" : "Сайт",
+      price,
+    });
+  }
+
+  sheet.addRow({});
+  const totalRow = sheet.addRow({
+    date: "Разом",
+    client: `${bookings.length} записів`,
+    status: "Виручка (виконані):",
+    price: totalRevenue,
+  });
+  totalRow.font = { bold: true };
+
+  const arrayBuffer = await workbook.xlsx.writeBuffer();
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: "admin_report_exported",
+    entityType: "report",
+    entityId: "bookings",
+    metadata: {
+      from: filters.from,
+      to: filters.to,
+      masterId: filters.masterId ?? null,
+      locationId: filters.locationId ?? null,
+      status: filters.status ?? null,
+      rowCount: bookings.length,
+    },
+    ip,
+    userAgent,
+  });
+
+  return {
+    buffer: Buffer.from(arrayBuffer),
+    filename: `visavis-zvit-${filters.from}_${filters.to}.xlsx`,
+    rowCount: bookings.length,
+  };
 }

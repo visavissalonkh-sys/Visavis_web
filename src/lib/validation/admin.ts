@@ -120,3 +120,18 @@ export const adminLocationInputSchema = z.object({
 export const adminReviewRejectSchema = z.object({
   reason: z.string().trim().max(500).optional(),
 });
+
+const bookingStatus = z.enum(["pending", "confirmed", "completed", "cancelled", "no_show"]);
+
+export const adminAnalyticsQuerySchema = z.object({
+  from: dateOnly,
+  to: dateOnly,
+});
+
+export const adminReportExportSchema = z.object({
+  from: dateOnly,
+  to: dateOnly,
+  masterId: uuid.optional(),
+  locationId: uuid.optional(),
+  status: bookingStatus.optional(),
+});
