@@ -26,6 +26,7 @@ import {
   type RegularScheduleDay,
 } from "@/lib/master";
 import { generateOtpCode, storeOtp, verifyOtp, type VerifyOtpResult } from "@/lib/otp";
+import { slugify, ensureUniqueSlug } from "@/lib/slug";
 
 export { InvalidScheduleError };
 
@@ -619,31 +620,8 @@ export async function verifyAdminReauthOtp(admin: AdminContext, code: string): P
 export class MasterNotFoundError extends Error {}
 export class MasterPhoneConflictError extends Error {}
 
-const UK_TRANSLIT: Record<string, string> = {
-  а: "a", б: "b", в: "v", г: "h", ґ: "g", д: "d", е: "e", є: "ie", ж: "zh", з: "z",
-  и: "y", і: "i", ї: "i", й: "i", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p",
-  р: "r", с: "s", т: "t", у: "u", ф: "f", х: "kh", ц: "ts", ч: "ch", ш: "sh", щ: "shch",
-  ь: "", ю: "iu", я: "ia", "'": "", "’": "",
-};
-
-function slugifyName(name: string): string {
-  const transliterated = name
-    .toLowerCase()
-    .split("")
-    .map((ch) => UK_TRANSLIT[ch] ?? ch)
-    .join("");
-  return transliterated.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
-}
-
 async function generateUniqueMasterSlug(name: string): Promise<string> {
-  const base = slugifyName(name) || "master";
-  let slug = base;
-  let suffix = 2;
-  while (await prisma.master.findUnique({ where: { slug } })) {
-    slug = `${base}-${suffix}`;
-    suffix++;
-  }
-  return slug;
+  return ensureUniqueSlug(slugify(name) || "master", async (slug) => (await prisma.master.findUnique({ where: { slug } })) !== null);
 }
 
 export type AdminMastersList = Awaited<ReturnType<typeof getAdminMastersList>>;
@@ -879,6 +857,366 @@ export async function reactivateAdminMaster(
     entityId: masterId,
     oldValue: { isActive: false },
     newValue: { isActive: true },
+    ip,
+    userAgent,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Services: list, detail, create/update, inline price edit, soft delete
+// ---------------------------------------------------------------------------
+
+export class ServiceNotFoundError extends Error {}
+export class InvalidPriceRangeError extends Error {}
+
+export type AdminServicesList = Awaited<ReturnType<typeof getAdminServicesList>>;
+
+export async function getAdminServicesList() {
+  const services = await prisma.service.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] });
+  return services.map((s) => ({
+    id: s.id,
+    category: s.category,
+    name: s.name,
+    durationMinutes: s.durationMinutes,
+    priceFrom: Number(s.priceFrom),
+    priceTo: s.priceTo !== null ? Number(s.priceTo) : null,
+    isActive: s.isActive,
+    seoSlug: s.seoSlug,
+  }));
+}
+
+export async function getAdminServiceDetail(serviceId: string) {
+  const service = await prisma.service.findUnique({ where: { id: serviceId } });
+  if (!service) throw new ServiceNotFoundError();
+  return {
+    id: service.id,
+    category: service.category,
+    name: service.name,
+    description: service.description,
+    durationMinutes: service.durationMinutes,
+    priceFrom: Number(service.priceFrom),
+    priceTo: service.priceTo !== null ? Number(service.priceTo) : null,
+    photoUrls: service.photoUrls,
+    seoSlug: service.seoSlug,
+    isActive: service.isActive,
+  };
+}
+
+/** The list page's inline price edit — deliberately separate from the full
+ * update below so a one-field change in a table cell doesn't need the whole
+ * edit form's payload (name/category/description/photos unrelated to it). */
+export async function updateAdminServicePrice(
+  serviceId: string,
+  priceFrom: number,
+  priceTo: number | null,
+  admin: AdminContext,
+  ip: string,
+  userAgent: string | null,
+) {
+  const before = await prisma.service.findUnique({ where: { id: serviceId } });
+  if (!before) throw new ServiceNotFoundError();
+  if (priceTo !== null && priceTo < priceFrom) throw new InvalidPriceRangeError();
+
+  await prisma.service.update({ where: { id: serviceId }, data: { priceFrom, priceTo } });
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: "admin_service_price_updated",
+    entityType: "service",
+    entityId: serviceId,
+    oldValue: { priceFrom: Number(before.priceFrom), priceTo: before.priceTo !== null ? Number(before.priceTo) : null },
+    newValue: { priceFrom, priceTo },
+    ip,
+    userAgent,
+  });
+}
+
+export type AdminServiceInput = {
+  category: string;
+  name: string;
+  description: string;
+  durationMinutes: number;
+  priceFrom: number;
+  priceTo?: number;
+  photoUrls: string[];
+  seoSlug?: string;
+};
+
+export async function createAdminService(
+  input: AdminServiceInput,
+  admin: AdminContext,
+  ip: string,
+  userAgent: string | null,
+) {
+  if (input.priceTo !== undefined && input.priceTo < input.priceFrom) throw new InvalidPriceRangeError();
+
+  const desiredBase = slugify(input.seoSlug?.trim() || input.name);
+  const seoSlug = await ensureUniqueSlug(
+    desiredBase,
+    async (slug) => (await prisma.service.findUnique({ where: { seoSlug: slug } })) !== null,
+  );
+
+  const service = await prisma.service.create({
+    data: {
+      category: input.category,
+      name: input.name,
+      description: input.description,
+      durationMinutes: input.durationMinutes,
+      priceFrom: input.priceFrom,
+      priceTo: input.priceTo ?? null,
+      photoUrls: input.photoUrls,
+      seoSlug,
+    },
+  });
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: "admin_service_created",
+    entityType: "service",
+    entityId: service.id,
+    newValue: { ...input, seoSlug },
+    ip,
+    userAgent,
+  });
+
+  return service;
+}
+
+export async function updateAdminService(
+  serviceId: string,
+  input: AdminServiceInput,
+  admin: AdminContext,
+  ip: string,
+  userAgent: string | null,
+) {
+  if (input.priceTo !== undefined && input.priceTo < input.priceFrom) throw new InvalidPriceRangeError();
+
+  const before = await prisma.service.findUnique({ where: { id: serviceId } });
+  if (!before) throw new ServiceNotFoundError();
+
+  const desiredSlug = input.seoSlug?.trim() ? slugify(input.seoSlug) : before.seoSlug;
+  const seoSlug =
+    desiredSlug === before.seoSlug
+      ? before.seoSlug
+      : await ensureUniqueSlug(desiredSlug, async (slug) => {
+          const existing = await prisma.service.findUnique({ where: { seoSlug: slug } });
+          return existing !== null && existing.id !== serviceId;
+        });
+
+  await prisma.service.update({
+    where: { id: serviceId },
+    data: {
+      category: input.category,
+      name: input.name,
+      description: input.description,
+      durationMinutes: input.durationMinutes,
+      priceFrom: input.priceFrom,
+      priceTo: input.priceTo ?? null,
+      photoUrls: input.photoUrls,
+      seoSlug,
+    },
+  });
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: "admin_service_updated",
+    entityType: "service",
+    entityId: serviceId,
+    oldValue: {
+      name: before.name,
+      category: before.category,
+      priceFrom: Number(before.priceFrom),
+      priceTo: before.priceTo !== null ? Number(before.priceTo) : null,
+      seoSlug: before.seoSlug,
+    },
+    newValue: { name: input.name, category: input.category, priceFrom: input.priceFrom, priceTo: input.priceTo ?? null, seoSlug },
+    ip,
+    userAgent,
+  });
+}
+
+export async function setServiceActive(
+  serviceId: string,
+  isActive: boolean,
+  admin: AdminContext,
+  ip: string,
+  userAgent: string | null,
+) {
+  const before = await prisma.service.findUnique({ where: { id: serviceId } });
+  if (!before) throw new ServiceNotFoundError();
+
+  await prisma.service.update({ where: { id: serviceId }, data: { isActive } });
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: isActive ? "admin_service_reactivated" : "admin_service_deactivated",
+    entityType: "service",
+    entityId: serviceId,
+    oldValue: { isActive: before.isActive },
+    newValue: { isActive },
+    ip,
+    userAgent,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Locations: list, detail, create/update, soft delete
+// ---------------------------------------------------------------------------
+
+export class LocationNotFoundError extends Error {}
+
+const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+export type WorkingHoursDay = { isOpen: boolean; from?: string; to?: string };
+export type WorkingHours = Record<(typeof DAY_KEYS)[number], WorkingHoursDay>;
+
+/** Existing seed data used a single `{ everyday: "09:00-21:00" }` shape;
+ * Stage 5's spec wants real per-day hours. Reading an old-shaped row through
+ * this just applies its one range to every day — the next save then
+ * persists the real per-day shape, no migration needed. */
+function normalizeWorkingHours(raw: unknown): WorkingHours {
+  const closedWeek = () => Object.fromEntries(DAY_KEYS.map((k) => [k, { isOpen: false }])) as WorkingHours;
+
+  if (!raw || typeof raw !== "object") return closedWeek();
+  const obj = raw as Record<string, unknown>;
+
+  if (typeof obj.everyday === "string") {
+    const [from, to] = obj.everyday.split("-");
+    const day: WorkingHoursDay = { isOpen: true, from, to };
+    return Object.fromEntries(DAY_KEYS.map((k) => [k, day])) as WorkingHours;
+  }
+
+  const result = closedWeek();
+  for (const key of DAY_KEYS) {
+    const day = obj[key] as Partial<WorkingHoursDay> | undefined;
+    if (day?.isOpen) result[key] = { isOpen: true, from: day.from, to: day.to };
+  }
+  return result;
+}
+
+export type AdminLocationsList = Awaited<ReturnType<typeof getAdminLocationsList>>;
+
+export async function getAdminLocationsList() {
+  const locations = await prisma.location.findMany({ orderBy: { name: "asc" } });
+  return locations.map((l) => ({
+    id: l.id,
+    name: l.name,
+    address: l.address,
+    phone: l.phone,
+    workingHours: normalizeWorkingHours(l.workingHours),
+    photoUrls: l.photoUrls,
+    isActive: l.isActive,
+  }));
+}
+
+export async function getAdminLocationDetail(locationId: string) {
+  const location = await prisma.location.findUnique({ where: { id: locationId } });
+  if (!location) throw new LocationNotFoundError();
+  return {
+    id: location.id,
+    name: location.name,
+    address: location.address,
+    phone: location.phone,
+    workingHours: normalizeWorkingHours(location.workingHours),
+    photoUrls: location.photoUrls,
+    isActive: location.isActive,
+  };
+}
+
+export type AdminLocationInput = {
+  name: string;
+  address: string;
+  phone: string;
+  workingHours: WorkingHours;
+  photoUrls: string[];
+};
+
+export async function createAdminLocation(
+  input: AdminLocationInput,
+  admin: AdminContext,
+  ip: string,
+  userAgent: string | null,
+) {
+  const slug = await ensureUniqueSlug(
+    slugify(input.name),
+    async (slug) => (await prisma.location.findUnique({ where: { slug } })) !== null,
+  );
+
+  const location = await prisma.location.create({
+    data: {
+      slug,
+      name: input.name,
+      address: input.address,
+      phone: input.phone,
+      workingHours: input.workingHours as unknown as Prisma.InputJsonValue,
+      photoUrls: input.photoUrls,
+    },
+  });
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: "admin_location_created",
+    entityType: "location",
+    entityId: location.id,
+    newValue: { name: input.name, address: input.address, phone: input.phone },
+    ip,
+    userAgent,
+  });
+
+  return location;
+}
+
+export async function updateAdminLocation(
+  locationId: string,
+  input: AdminLocationInput,
+  admin: AdminContext,
+  ip: string,
+  userAgent: string | null,
+) {
+  const before = await prisma.location.findUnique({ where: { id: locationId } });
+  if (!before) throw new LocationNotFoundError();
+
+  await prisma.location.update({
+    where: { id: locationId },
+    data: {
+      name: input.name,
+      address: input.address,
+      phone: input.phone,
+      workingHours: input.workingHours as unknown as Prisma.InputJsonValue,
+      photoUrls: input.photoUrls,
+    },
+  });
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: "admin_location_updated",
+    entityType: "location",
+    entityId: locationId,
+    oldValue: { name: before.name, address: before.address, phone: before.phone },
+    newValue: { name: input.name, address: input.address, phone: input.phone },
+    ip,
+    userAgent,
+  });
+}
+
+export async function setLocationActive(
+  locationId: string,
+  isActive: boolean,
+  admin: AdminContext,
+  ip: string,
+  userAgent: string | null,
+) {
+  const before = await prisma.location.findUnique({ where: { id: locationId } });
+  if (!before) throw new LocationNotFoundError();
+
+  await prisma.location.update({ where: { id: locationId }, data: { isActive } });
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: isActive ? "admin_location_reactivated" : "admin_location_deactivated",
+    entityType: "location",
+    entityId: locationId,
+    oldValue: { isActive: before.isActive },
+    newValue: { isActive },
     ip,
     userAgent,
   });

@@ -66,3 +66,53 @@ export const deactivateMasterSchema = z.object({
 export const reauthVerifySchema = z.object({
   code: z.string().regex(/^\d{6}$/, "Код має складатись з 6 цифр"),
 });
+
+// Mirrors src/lib/data/services.ts's fixed category list — a service filed
+// under any other category would never show up on a public category page.
+const SERVICE_CATEGORIES = ["hair", "nails", "cosmetology", "permanent", "massage"] as const;
+
+export const adminServicePriceUpdateSchema = z
+  .object({
+    priceFrom: z.number().nonnegative(),
+    priceTo: z.number().nonnegative().nullable().optional(),
+  })
+  .refine((v) => v.priceTo == null || v.priceTo >= v.priceFrom, { message: "Ціна «до» не може бути меншою за «від»" });
+
+export const adminServiceInputSchema = z
+  .object({
+    category: z.enum(SERVICE_CATEGORIES),
+    name: z.string().trim().min(1, "Назва обов'язкова").max(150),
+    description: z.string().trim().min(1, "Опис обов'язковий").max(1000),
+    durationMinutes: z.number().int().min(5).max(600),
+    priceFrom: z.number().nonnegative(),
+    priceTo: z.number().nonnegative().optional(),
+    photoUrls: z.array(z.string().url()).max(10),
+    seoSlug: z.string().trim().max(100).optional(),
+  })
+  .refine((v) => v.priceTo == null || v.priceTo >= v.priceFrom, { message: "Ціна «до» не може бути меншою за «від»" });
+
+export const adminSetActiveSchema = z.object({ isActive: z.boolean() });
+
+const workingHoursDaySchema = z.object({
+  isOpen: z.boolean(),
+  from: timeOnly.optional(),
+  to: timeOnly.optional(),
+});
+
+export const workingHoursSchema = z.object({
+  mon: workingHoursDaySchema,
+  tue: workingHoursDaySchema,
+  wed: workingHoursDaySchema,
+  thu: workingHoursDaySchema,
+  fri: workingHoursDaySchema,
+  sat: workingHoursDaySchema,
+  sun: workingHoursDaySchema,
+});
+
+export const adminLocationInputSchema = z.object({
+  name: z.string().trim().min(1, "Назва обов'язкова").max(150),
+  address: z.string().trim().min(1, "Адреса обов'язкова").max(300),
+  phone: z.string().trim().min(5).max(20),
+  workingHours: workingHoursSchema,
+  photoUrls: z.array(z.string().url()).max(10),
+});
