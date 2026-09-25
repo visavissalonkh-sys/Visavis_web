@@ -6,6 +6,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { AuthModalProvider } from "@/components/auth/AuthModalProvider";
 import { prisma } from "@/lib/prisma";
 import { buildLocationJsonLd } from "@/lib/seo/local-business";
+import { toPublicLocation } from "@/lib/locations";
 import "./globals.css";
 
 const inter = Inter({
@@ -43,8 +44,9 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
-  const activeLocations = await prisma.location.findMany({ where: { isActive: true } });
+  const activeLocations = await prisma.location.findMany({ where: { isActive: true }, orderBy: { name: "asc" } });
   const locationJsonLds = activeLocations.map((location) => buildLocationJsonLd(location, siteUrl));
+  const footerLocations = activeLocations.map(toPublicLocation);
 
   return (
     <html
@@ -63,7 +65,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <AuthModalProvider>
           <SiteHeader />
           <main className="flex-1 pt-20">{children}</main>
-          <SiteFooter />
+          <SiteFooter locations={footerLocations} />
         </AuthModalProvider>
       </body>
     </html>

@@ -1,15 +1,14 @@
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { categories } from "@/lib/data/services";
-import { locations } from "@/lib/data/locations";
 
-const stats = [
-  { value: String(categories.length), label: "напрямків краси" },
-  { value: String(locations.length), label: "філії у Харкові" },
-  { value: "1", label: "команда, єдиний стандарт якості" },
-];
+export function Hero({ locationsCount }: { locationsCount: number }) {
+  const stats = [
+    { value: String(categories.length), label: "напрямків краси" },
+    { value: String(locationsCount), label: "філії у Харкові" },
+    { value: "1", label: "команда, єдиний стандарт якості" },
+  ];
 
-export function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { locations } from "@/lib/data/locations";
+import { getPublicLocations } from "@/lib/locations";
 import { prisma } from "@/lib/prisma";
 
 // Not SSG — see /masters/[slug]/page.tsx for why.
@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function LocationsPage() {
+  const locations = await getPublicLocations();
   const masterLocations = await prisma.masterLocation.findMany({
     distinct: ["masterId", "locationId"],
     include: { master: true, location: true },

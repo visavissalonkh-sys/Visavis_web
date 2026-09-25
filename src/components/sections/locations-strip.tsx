@@ -1,9 +1,9 @@
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Reveal } from "@/components/ui/reveal";
-import { locations } from "@/lib/data/locations";
+import type { PublicLocation } from "@/lib/locations";
 
-export function LocationsStrip() {
+export function LocationsStrip({ locations }: { locations: PublicLocation[] }) {
   return (
     <section className="border-t border-border py-24 sm:py-32">
       <Container className="flex flex-col gap-14">

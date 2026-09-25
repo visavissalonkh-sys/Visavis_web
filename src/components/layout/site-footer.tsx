@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { categories } from "@/lib/data/services";
-import { locations } from "@/lib/data/locations";
+import type { PublicLocation } from "@/lib/locations";
 
-export function SiteFooter() {
+export function SiteFooter({ locations }: { locations: PublicLocation[] }) {
   return (
     <footer className="border-t border-border bg-surface">
       <Container className="grid gap-12 py-16 lg:grid-cols-[1.2fr_1fr_1fr_1fr]">

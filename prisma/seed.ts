@@ -1,9 +1,16 @@
 import { PrismaClient } from "@prisma/client";
 import { services } from "../src/lib/data/services";
 import { masters as masterSeed } from "../src/lib/data/masters";
-import { locations as locationSeed } from "../src/lib/data/locations";
 
 const prisma = new PrismaClient();
+
+// Seed-only fixtures — the live app reads Location rows straight from the DB
+// (src/lib/locations.ts) once seeded, not from a static file. Addresses are
+// still placeholders pending confirmed street addresses from the client.
+const locationSeed = [
+  { slug: "sumska", name: "Visavis на Сумській", address: "м. Харків, вул. Сумська (адреса уточнюється)", phone: "+38 (057) 000-00-01" },
+  { slug: "pavlove-pole", name: "Visavis на Павловому Полі", address: "м. Харків, Павлове Поле (адреса уточнюється)", phone: "+38 (057) 000-00-02" },
+];
 
 // 0 = Sunday .. 6 = Saturday (matches JS Date#getDay and the schema comment).
 // Every master gets Monday off; the salon itself is open every day 09:00-21:00.

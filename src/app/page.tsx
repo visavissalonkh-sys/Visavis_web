@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { categories } from "@/lib/data/services";
+import { getPublicLocations } from "@/lib/locations";
 import { Hero } from "@/components/sections/hero";
 import { CategoriesStrip } from "@/components/sections/categories-strip";
 import { FeaturedMasters } from "@/components/sections/featured-masters";
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://visavis.example";
 const homeTitle = "Visavis — преміальний салон краси в Харкові";
 const homeDescription =
-  "Visavis — преміальна мережа салонів краси в Харкові на Гагаріна та Сумській. Манікюр, стрижки, косметологія, перманентний макіяж і масаж. Онлайн-запис до кращих майстрів міста.";
+  "Visavis — преміальна мережа салонів краси в Харкові на Сумській та Павловому Полі. Манікюр, стрижки, косметологія, перманентний макіяж і масаж. Онлайн-запис до кращих майстрів міста.";
 
 // Root layout's own `metadata` covers every page as a fallback (title
 // template, base OG type) — this overrides it with the homepage's actual
@@ -31,8 +32,8 @@ export const metadata: Metadata = {
     "стрижка Харків",
     "косметолог Харків",
     "перманентний макіяж Харків",
-    "Гагаріна салон краси",
     "Сумська салон краси",
+    "Павлове Поле салон краси",
   ],
   openGraph: {
     type: "website",
@@ -92,6 +93,8 @@ export default async function Home() {
     })),
   };
 
+  const locations = await getPublicLocations();
+
   const masters = await prisma.master.findMany({
     where: { isActive: true },
     include: {
@@ -123,10 +126,10 @@ export default async function Home() {
         nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
-      <Hero />
+      <Hero locationsCount={locations.length} />
       <CategoriesStrip />
       <FeaturedMasters masters={featuredMasters} />
-      <LocationsStrip />
+      <LocationsStrip locations={locations} />
       <Testimonials />
       <CtaBanner />
     </>
