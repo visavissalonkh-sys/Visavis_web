@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { notifyAdmins } from "@/lib/alerts";
 
 export const createReviewSchema = z.object({
   bookingId: z.string().uuid(),
@@ -20,7 +21,10 @@ export async function createReview(
   clientId: string,
   input: { bookingId: string; rating: number; text?: string },
 ) {
-  const booking = await prisma.booking.findUnique({ where: { id: input.bookingId } });
+  const booking = await prisma.booking.findUnique({
+    where: { id: input.bookingId },
+    include: { master: true, client: true },
+  });
   if (!booking || booking.clientId !== clientId) throw new BookingOwnershipError();
   if (booking.status !== "completed") throw new BookingNotCompletedError();
 
@@ -28,7 +32,7 @@ export async function createReview(
   if (existing) throw new ReviewAlreadyExistsError();
 
   try {
-    return await prisma.review.create({
+    const review = await prisma.review.create({
       data: {
         clientId,
         masterId: booking.masterId,
@@ -38,6 +42,18 @@ export async function createReview(
         text: input.text ?? "",
       },
     });
+
+    notifyAdmins(
+      [
+        "⭐ <b>Новий відгук на модерацію</b>",
+        "",
+        `Клієнт: ${booking.client.name ?? booking.client.phone}`,
+        `Майстер: ${booking.master.name}`,
+        `Оцінка: ${"★".repeat(input.rating)}${"☆".repeat(5 - input.rating)}`,
+      ].join("\n"),
+    ).catch((error) => console.error("Failed to notify admins of new review", error));
+
+    return review;
   } catch (error) {
     // Race: two concurrent requests both passed the check above — the
     // unique constraint on bookingId is the real guarantee, this is just a

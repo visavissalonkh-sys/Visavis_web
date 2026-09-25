@@ -11,6 +11,7 @@ import {
   type Range,
 } from "@/lib/booking";
 import { getSalonToday } from "@/lib/timezone";
+import { notifyAdmins } from "@/lib/alerts";
 
 /** Resolves the Master row owned by this session, or null if the user isn't a master (yet). */
 export async function getMasterForSession(session: SessionPayload) {
@@ -354,7 +355,7 @@ export async function createOverride(
     throw new OverrideConflictError();
   }
 
-  return prisma.masterAvailabilityOverride.create({
+  const override = await prisma.masterAvailabilityOverride.create({
     data: {
       masterId,
       date,
@@ -365,6 +366,32 @@ export async function createOverride(
       createdBy: "master",
     },
   });
+
+  if (input.type === "day_off") {
+    const conflicting = await prisma.booking.findMany({
+      where: { masterId, date, status: { in: ["pending", "confirmed"] } },
+      include: { client: true, service: true },
+      orderBy: { timeFrom: "asc" },
+    });
+    if (conflicting.length > 0) {
+      const master = await prisma.master.findUnique({ where: { id: masterId } });
+      notifyAdmins(
+        [
+          "⚠️ <b>Можливий конфлікт: вихідний майстра</b>",
+          "",
+          `Майстер: ${master?.name ?? masterId}`,
+          `Дата: ${formatDateOnly(date)}`,
+          "",
+          `Наявні записи на цю дату (${conflicting.length}):`,
+          ...conflicting.map(
+            (b) => `• о ${b.timeFrom} — ${b.client.name ?? b.client.phone}, ${b.service.name}`,
+          ),
+        ].join("\n"),
+      ).catch((error) => console.error("Failed to notify admins of day-off conflict", error));
+    }
+  }
+
+  return override;
 }
 
 export async function deleteOverride(masterId: string, overrideId: string): Promise<boolean> {

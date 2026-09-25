@@ -20,6 +20,7 @@ import { scheduleReminders, visitStartsAt } from "@/lib/reminders";
 import { sendTelegramMessage } from "@/lib/notifications";
 import { logAuthEvent } from "@/lib/audit-log";
 import { queueSheetsSync } from "@/lib/sheets";
+import { notifyAdmins } from "@/lib/alerts";
 
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
@@ -148,6 +149,18 @@ export async function POST(request: NextRequest) {
         ].join("\n"),
       ).catch((error) => console.error("Failed to notify client", error));
     }
+
+    notifyAdmins(
+      [
+        "🆕 <b>Новий запис</b>",
+        "",
+        `Клієнт: ${client?.name ?? client?.phone ?? "—"}`,
+        `Майстер: ${master.name}`,
+        `Послуга: ${service.name}`,
+        `📅 ${whenText}`,
+        `📍 ${location.address}`,
+      ].join("\n"),
+    ).catch((error) => console.error("Failed to notify admins of new booking", error));
 
     return NextResponse.json({ success: true, bookingId: booking.id });
   } catch (error) {

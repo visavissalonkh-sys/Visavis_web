@@ -9,6 +9,7 @@ import { cancelReminders, visitStartsAt } from "@/lib/reminders";
 import { sendTelegramMessage } from "@/lib/notifications";
 import { logAuthEvent } from "@/lib/audit-log";
 import { queueSheetsSync } from "@/lib/sheets";
+import { notifyAdmins } from "@/lib/alerts";
 
 const MIN_HOURS_BEFORE_CANCEL = 2;
 
@@ -85,6 +86,18 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/bookin
       `Ваш запис на ${whenText} скасовано ✅`,
     ).catch((error) => console.error("Failed to notify client of cancellation", error));
   }
+
+  notifyAdmins(
+    [
+      "❌ <b>Скасування запису</b>",
+      `Скасував: ${isAdmin ? "адміністратор" : "клієнт"}`,
+      "",
+      `Клієнт: ${client?.name ?? client?.phone ?? "—"}`,
+      `Майстер: ${booking.master.name}`,
+      `Послуга: ${booking.service.name}`,
+      `📅 ${whenText}`,
+    ].join("\n"),
+  ).catch((error) => console.error("Failed to notify admins of cancellation", error));
 
   return NextResponse.json({ success: true });
 }

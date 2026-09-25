@@ -29,6 +29,7 @@ import {
 import { generateOtpCode, storeOtp, verifyOtp, type VerifyOtpResult } from "@/lib/otp";
 import { slugify, ensureUniqueSlug } from "@/lib/slug";
 import { queueSheetsSync } from "@/lib/sheets";
+import { notifyAdmins } from "@/lib/alerts";
 import { STATUS_LABELS } from "@/components/master/status-badge";
 
 export { InvalidScheduleError };
@@ -433,6 +434,18 @@ export async function cancelAdminBooking(
     ).catch((error) => console.error("Failed to notify client of admin cancellation", error));
   }
 
+  notifyAdmins(
+    [
+      "❌ <b>Скасування запису</b>",
+      "Скасував: адміністратор",
+      "",
+      `Клієнт: ${booking.client.name ?? booking.client.phone}`,
+      `Майстер: ${booking.master.name}`,
+      `Послуга: ${booking.service.name}`,
+      `📅 ${whenText}`,
+    ].join("\n"),
+  ).catch((error) => console.error("Failed to notify admins of cancellation", error));
+
   await logAdminAction({
     actorId: admin.adminId,
     action: "admin_booking_cancelled",
@@ -482,12 +495,25 @@ export async function updateAdminBookingStatus(
     await cancelReminders(bookingId);
   }
 
-  if (newStatus === "cancelled" && booking.client.telegramId) {
+  if (newStatus === "cancelled") {
     const whenText = formatBookingDateTimeUk(booking.date, booking.timeFrom);
-    sendTelegramMessage(
-      booking.client.telegramId.toString(),
-      `Ваш запис на ${whenText} скасовано адміністрацією. Перепрошуємо за незручності — оберіть, будь ласка, інший час на сайті.`,
-    ).catch((error) => console.error("Failed to notify client of admin status change", error));
+    if (booking.client.telegramId) {
+      sendTelegramMessage(
+        booking.client.telegramId.toString(),
+        `Ваш запис на ${whenText} скасовано адміністрацією. Перепрошуємо за незручності — оберіть, будь ласка, інший час на сайті.`,
+      ).catch((error) => console.error("Failed to notify client of admin status change", error));
+    }
+    notifyAdmins(
+      [
+        "❌ <b>Скасування запису</b>",
+        "Скасував: адміністратор",
+        "",
+        `Клієнт: ${booking.client.name ?? booking.client.phone}`,
+        `Майстер: ${booking.master.name}`,
+        `Послуга: ${booking.service.name}`,
+        `📅 ${whenText}`,
+      ].join("\n"),
+    ).catch((error) => console.error("Failed to notify admins of cancellation", error));
   }
 
   await queueSheetsSync(bookingId, "status_changed");
