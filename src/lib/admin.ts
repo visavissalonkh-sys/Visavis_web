@@ -1555,3 +1555,102 @@ export async function generateAdminReportXlsx(
     rowCount: bookings.length,
   };
 }
+
+// --- Audit log (read-only) --------------------------------------------------
+
+const ADMIN_AUDIT_PAGE_SIZE = 100;
+
+export type AdminAuditFilters = {
+  actorId?: string;
+  action?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page: number;
+};
+
+export type AdminAuditList = Awaited<ReturnType<typeof getAdminAuditLog>>;
+
+/**
+ * Deliberately the only function in this file that reads AdminAuditLog and
+ * does NOT also write to it — viewing the log must never itself produce a
+ * new entry, or every page of the log would grow the log. There is also no
+ * update/delete counterpart anywhere in the codebase for this table (see
+ * the model comment in schema.prisma) — this file has no
+ * deleteAdminAuditLog / updateAdminAuditLog export, and never will.
+ */
+export async function getAdminAuditLog(filters: AdminAuditFilters) {
+  const where: Prisma.AdminAuditLogWhereInput = {
+    actorId: filters.actorId || undefined,
+    action: filters.action || undefined,
+    createdAt: {
+      gte: filters.dateFrom ? parseDateOnly(filters.dateFrom) : undefined,
+      // dateTo is a calendar day picked in a date input, but createdAt has a
+      // time component — "up to and including that day" means strictly
+      // before the NEXT day, not <= its own midnight.
+      lt: filters.dateTo ? addDays(parseDateOnly(filters.dateTo), 1) : undefined,
+    },
+  };
+
+  const [rows, total] = await Promise.all([
+    prisma.adminAuditLog.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (filters.page - 1) * ADMIN_AUDIT_PAGE_SIZE,
+      take: ADMIN_AUDIT_PAGE_SIZE,
+    }),
+    prisma.adminAuditLog.count({ where }),
+  ]);
+
+  const actorIds = Array.from(new Set(rows.map((r) => r.actorId)));
+  const actors = actorIds.length > 0
+    ? await prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, name: true, phone: true } })
+    : [];
+  const actorNames = new Map(actors.map((a) => [a.id, a.name ?? a.phone]));
+
+  return {
+    entries: rows.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt,
+      actorId: r.actorId,
+      actorName: actorNames.get(r.actorId) ?? "Видалений користувач",
+      action: r.action,
+      entityType: r.entityType,
+      entityId: r.entityId,
+      oldValue: r.oldValue,
+      newValue: r.newValue,
+      metadata: r.metadata,
+      ip: r.ip,
+      userAgent: r.userAgent,
+    })),
+    total,
+    page: filters.page,
+    pageSize: ADMIN_AUDIT_PAGE_SIZE,
+    totalPages: Math.max(1, Math.ceil(total / ADMIN_AUDIT_PAGE_SIZE)),
+  };
+}
+
+export type AdminAuditFilterOptions = Awaited<ReturnType<typeof getAdminAuditFilterOptions>>;
+
+/** Options come from the log itself (distinct actorId/action ever recorded),
+ * not from the current admins table — a demoted or deactivated admin's past
+ * actions must stay filterable by name. */
+export async function getAdminAuditFilterOptions() {
+  const [actionRows, actorRows] = await Promise.all([
+    prisma.adminAuditLog.findMany({ distinct: ["action"], select: { action: true }, orderBy: { action: "asc" } }),
+    prisma.adminAuditLog.findMany({ distinct: ["actorId"], select: { actorId: true } }),
+  ]);
+
+  const actorIds = actorRows.map((a) => a.actorId);
+  const actors = actorIds.length > 0
+    ? await prisma.user.findMany({
+        where: { id: { in: actorIds } },
+        select: { id: true, name: true, phone: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
+
+  return {
+    actions: actionRows.map((a) => a.action),
+    actors: actors.map((a) => ({ id: a.id, name: a.name ?? a.phone })),
+  };
+}
