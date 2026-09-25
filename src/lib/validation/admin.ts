@@ -116,3 +116,7 @@ export const adminLocationInputSchema = z.object({
   workingHours: workingHoursSchema,
   photoUrls: z.array(z.string().url()).max(10),
 });
+
+export const adminReviewRejectSchema = z.object({
+  reason: z.string().trim().max(500).optional(),
+});

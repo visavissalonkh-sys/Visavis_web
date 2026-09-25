@@ -1,0 +1,43 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { requireAdmin, publishReview, NotAdminError, ReviewNotFoundError } from "@/lib/admin";
+import { isTrustedOrigin } from "@/lib/csrf";
+import { rateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/request-ip";
+
+export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/admin/reviews/[id]/publish">) {
+  if (!isTrustedOrigin(request)) {
+    return NextResponse.json({ error: "forbidden_origin" }, { status: 403 });
+  }
+
+  let admin;
+  try {
+    admin = await requireAdmin();
+  } catch (error) {
+    if (error instanceof NotAdminError) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    throw error;
+  }
+
+  // Shared with reject/unpublish — one budget for moderation actions overall,
+  // so an accidental spam-click across several buttons in a row still trips it.
+  const limit = await rateLimit(`admin:reviews:moderate:${admin.adminId}`, 15, 60);
+  if (!limit.success) {
+    return NextResponse.json(
+      { error: "rate_limited", message: "Забагато дій поспіль. Зачекайте хвилину." },
+      { status: 429 },
+    );
+  }
+
+  const { id } = await ctx.params;
+  const ip = getClientIp(request.headers);
+  const userAgent = request.headers.get("user-agent");
+
+  try {
+    await publishReview(id, admin, ip, userAgent);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    if (error instanceof ReviewNotFoundError) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    throw error;
+  }
+}

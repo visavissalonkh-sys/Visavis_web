@@ -238,6 +238,7 @@ model Review {
   photoUrls   String[] @map("photo_urls")
   isModerated Boolean  @default(false) @map("is_moderated")
   isPublished Boolean  @default(false) @map("is_published")
+  rejectionReason String? @map("rejection_reason")
   createdAt   DateTime @default(now()) @map("created_at")
 
   client   User     @relation(fields: [clientId], references: [id], onDelete: Cascade)

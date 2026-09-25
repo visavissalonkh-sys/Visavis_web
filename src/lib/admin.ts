@@ -1221,3 +1221,123 @@ export async function setLocationActive(
     userAgent,
   });
 }
+
+// --- Reviews moderation ----------------------------------------------------
+
+export class ReviewNotFoundError extends Error {}
+
+const reviewCardInclude = {
+  client: { select: { name: true, phone: true } },
+  master: { select: { name: true, slug: true } },
+  location: { select: { name: true } },
+} satisfies Prisma.ReviewInclude;
+
+function formatReviewCard(review: Prisma.ReviewGetPayload<{ include: typeof reviewCardInclude }>) {
+  return {
+    id: review.id,
+    rating: review.rating,
+    text: review.text,
+    photoUrls: review.photoUrls,
+    createdAt: review.createdAt,
+    isPublished: review.isPublished,
+    isModerated: review.isModerated,
+    rejectionReason: review.rejectionReason,
+    clientName: review.client.name ?? review.client.phone,
+    masterName: review.master?.name ?? null,
+    masterSlug: review.master?.slug ?? null,
+    locationName: review.location.name,
+  };
+}
+
+export type AdminReviewCard = ReturnType<typeof formatReviewCard>;
+
+/** Pending queue — oldest first, so a review doesn't sit forever if new ones
+ * keep arriving on top of it. */
+export async function getAdminReviewsQueue() {
+  const reviews = await prisma.review.findMany({
+    where: { isModerated: false },
+    include: reviewCardInclude,
+    orderBy: { createdAt: "asc" },
+  });
+  return reviews.map(formatReviewCard);
+}
+
+export async function getAdminPublishedReviews() {
+  const reviews = await prisma.review.findMany({
+    where: { isPublished: true },
+    include: reviewCardInclude,
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+  return reviews.map(formatReviewCard);
+}
+
+/** Also used to re-publish a review an admin previously unpublished — it
+ * doesn't care about the review's current state, only where it ends up. */
+export async function publishReview(reviewId: string, admin: AdminContext, ip: string, userAgent: string | null) {
+  const before = await prisma.review.findUnique({ where: { id: reviewId } });
+  if (!before) throw new ReviewNotFoundError();
+
+  await prisma.review.update({
+    where: { id: reviewId },
+    data: { isModerated: true, isPublished: true, rejectionReason: null },
+  });
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: "admin_review_published",
+    entityType: "review",
+    entityId: reviewId,
+    oldValue: { isPublished: before.isPublished },
+    newValue: { isPublished: true },
+    ip,
+    userAgent,
+  });
+}
+
+export async function rejectReview(
+  reviewId: string,
+  reason: string | undefined,
+  admin: AdminContext,
+  ip: string,
+  userAgent: string | null,
+) {
+  const before = await prisma.review.findUnique({ where: { id: reviewId } });
+  if (!before) throw new ReviewNotFoundError();
+
+  await prisma.review.update({
+    where: { id: reviewId },
+    data: { isModerated: true, isPublished: false, rejectionReason: reason ?? null },
+  });
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: "admin_review_rejected",
+    entityType: "review",
+    entityId: reviewId,
+    oldValue: { isPublished: before.isPublished },
+    newValue: { isPublished: false, rejectionReason: reason ?? null },
+    ip,
+    userAgent,
+  });
+}
+
+/** Stays moderated — an unpublish is a visibility toggle, not an undo of the
+ * original moderation decision, so it doesn't go back into the queue. */
+export async function unpublishReview(reviewId: string, admin: AdminContext, ip: string, userAgent: string | null) {
+  const before = await prisma.review.findUnique({ where: { id: reviewId } });
+  if (!before) throw new ReviewNotFoundError();
+
+  await prisma.review.update({ where: { id: reviewId }, data: { isPublished: false } });
+
+  await logAdminAction({
+    actorId: admin.adminId,
+    action: "admin_review_unpublished",
+    entityType: "review",
+    entityId: reviewId,
+    oldValue: { isPublished: before.isPublished },
+    newValue: { isPublished: false },
+    ip,
+    userAgent,
+  });
+}
