@@ -24,9 +24,7 @@ export function SiteFooter({ locations }: { locations: PublicLocation[] }) {
         </div>
 
         <div className="flex flex-col gap-3">
-          <span className="text-xs font-medium uppercase tracking-[0.2em] text-fg-subtle">
-            Категорії
-          </span>
+          <span className="text-sm font-medium text-fg-subtle">Категорії</span>
           {categories.map((category) => (
             <Link
               key={category.slug}
@@ -39,9 +37,7 @@ export function SiteFooter({ locations }: { locations: PublicLocation[] }) {
         </div>
 
         <div className="flex flex-col gap-3">
-          <span className="text-xs font-medium uppercase tracking-[0.2em] text-fg-subtle">
-            Меню
-          </span>
+          <span className="text-sm font-medium text-fg-subtle">Меню</span>
           <Link href="/masters" className="text-sm text-fg-muted transition-colors hover:text-fg">
             Майстри
           </Link>
@@ -57,9 +53,7 @@ export function SiteFooter({ locations }: { locations: PublicLocation[] }) {
         </div>
 
         <div className="flex flex-col gap-3">
-          <span className="text-xs font-medium uppercase tracking-[0.2em] text-fg-subtle">
-            Філії
-          </span>
+          <span className="text-sm font-medium text-fg-subtle">Філії</span>
           {locations.map((location) => (
             <div key={location.slug} className="text-sm text-fg-muted">
               <div className="text-fg">{location.name}</div>
