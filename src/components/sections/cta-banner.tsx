@@ -17,9 +17,7 @@ export function CtaBanner() {
               }}
             />
             <div className="relative flex flex-col items-center gap-6">
-              <span className="text-xs font-medium uppercase tracking-[0.28em] text-accent">
-                Готові до змін?
-              </span>
+              <span className="font-display text-lg italic text-accent">Готові до змін?</span>
               <h2 className="font-display max-w-2xl text-balance text-3xl text-fg sm:text-5xl">
                 Оберіть послугу, майстра та зручний час — і залиште решту нам
               </h2>

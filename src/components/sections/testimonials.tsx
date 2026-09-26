@@ -24,25 +24,21 @@ export function Testimonials() {
                 delay={index * 60}
                 className="min-w-[280px] snap-start sm:min-w-0"
               >
-                <figure className="flex h-full flex-col justify-between gap-6 rounded-3xl border border-border bg-surface p-7">
-                  <div className="flex text-accent">
-                    {Array.from({ length: review.rating }).map((_, i) => (
-                      <span key={i}>★</span>
-                    ))}
-                  </div>
-                  <blockquote className="flex-1 text-sm leading-relaxed text-fg-muted">
-                    “{review.text}”
+                <figure className="flex h-full flex-col gap-3">
+                  <span aria-hidden className="font-display text-6xl leading-none text-accent/40">
+                    “
+                  </span>
+                  <blockquote className="flex-1 text-base leading-relaxed text-fg-muted">
+                    {review.text}
                   </blockquote>
-                  <figcaption className="flex items-center gap-3 border-t border-border pt-4">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full border border-accent-border bg-accent-soft text-xs font-medium text-accent">
-                      {review.authorInitials}
+                  <figcaption className="flex flex-col gap-1 border-t border-border pt-4">
+                    <span className="flex items-center gap-2 text-sm text-fg">
+                      {review.authorName}
+                      <span className="text-xs text-accent">{"★".repeat(review.rating)}</span>
                     </span>
-                    <div className="flex flex-col">
-                      <span className="text-sm text-fg">{review.authorName}</span>
-                      {category ? (
-                        <span className="text-xs text-fg-subtle">{category.name}</span>
-                      ) : null}
-                    </div>
+                    {category ? (
+                      <span className="text-xs text-fg-subtle">{category.name}</span>
+                    ) : null}
                   </figcaption>
                 </figure>
               </Reveal>

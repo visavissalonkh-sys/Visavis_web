@@ -21,14 +21,9 @@ export function CategoriesStrip() {
                 href={`/services/${category.slug}`}
                 className="group relative flex h-full flex-col justify-between gap-10 bg-surface p-8 transition-colors duration-300 hover:bg-surface-2"
               >
-                <div className="flex items-start justify-between">
-                  <span className="font-display text-sm text-fg-subtle">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="text-accent opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                    →
-                  </span>
-                </div>
+                <span className="font-display text-sm text-fg-subtle">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
 
                 <div className="flex flex-col gap-2">
                   <h3 className="font-display text-2xl text-fg">{category.name}</h3>
