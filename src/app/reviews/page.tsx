@@ -41,7 +41,6 @@ export default async function ReviewsPage() {
       ) : null}
 
       <SectionHeading
-        eyebrow="Відгуки"
         title="Що кажуть наші клієнтки"
         description="Реальні враження про роботу майстрів Visavis за кожним напрямком."
       />
@@ -51,7 +50,7 @@ export default async function ReviewsPage() {
           {reviews.map((review) => (
             <figure
               key={review.id}
-              className="flex flex-col gap-4 rounded-3xl border border-border bg-surface p-7"
+              className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-7"
             >
               <div className="flex items-center justify-between">
                 <div className="flex text-accent">

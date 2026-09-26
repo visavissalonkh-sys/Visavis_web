@@ -15,7 +15,6 @@ export default function ServicesPage() {
   return (
     <Container className="flex flex-col gap-16 py-20">
       <SectionHeading
-        eyebrow="Каталог"
         title="Усі послуги Visavis"
         description="П’ять напрямків краси в одному просторі — оберіть категорію, щоб побачити повний перелік послуг і цін."
       />

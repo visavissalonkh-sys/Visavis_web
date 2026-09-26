@@ -7,7 +7,6 @@ export function LocationsStrip({ locations }: { locations: PublicLocation[] }) {
     <section className="border-t border-border py-24 sm:py-32">
       <Container className="flex flex-col gap-14">
         <SectionHeading
-          eyebrow="Філії"
           title="Дві локації в Харкові"
           description="Оберіть зручну для вас точку — стандарт сервісу й асортимент послуг однакові в обох."
         />
@@ -16,7 +15,7 @@ export function LocationsStrip({ locations }: { locations: PublicLocation[] }) {
           {locations.map((location) => (
             <div
               key={location.slug}
-              className="group flex h-full flex-col justify-between gap-8 overflow-hidden rounded-3xl border border-border bg-surface p-8"
+              className="group flex h-full flex-col justify-between gap-8 overflow-hidden rounded-2xl border border-border bg-surface p-8"
             >
               <div
                 aria-hidden

@@ -33,7 +33,6 @@ export default async function LocationsPage() {
   return (
     <Container className="flex flex-col gap-14 py-20">
       <SectionHeading
-        eyebrow="Філії"
         title="Де нас знайти"
         description="Обидві філії працюють за єдиним стандартом сервісу та переліком послуг."
       />
@@ -45,7 +44,7 @@ export default async function LocationsPage() {
           return (
             <div
               key={location.slug}
-              className="flex flex-col gap-6 rounded-3xl border border-border bg-surface p-8"
+              className="flex flex-col gap-6 rounded-2xl border border-border bg-surface p-8"
             >
               <div
                 aria-hidden

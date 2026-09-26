@@ -4,18 +4,18 @@
   color-scheme: dark;
 
   /* Surfaces */
-  --color-bg: #0a0b0d;
-  --color-surface: #15161a;
-  --color-surface-2: #1c1d22;
-  --color-border: #2a2b30;
-  --color-border-strong: #3c3d44;
+  --color-bg: #0d0a08;
+  --color-surface: #17130f;
+  --color-surface-2: #1f1a15;
+  --color-border: #2c261f;
+  --color-border-strong: #3f372d;
 
   /* Text */
-  --color-fg: #ede9e2;
-  --color-fg-muted: #a39d92;
-  --color-fg-subtle: #6f6a62;
+  --color-fg: #f6f1e7;
+  --color-fg-muted: #ab9f8f;
+  --color-fg-subtle: #857c6f;
 
-  /* Accent — muted champagne, restrained/cooler direction */
+  /* Accent — muted champagne */
   --color-accent: #b3a17c;
   --color-accent-hover: #c2b192;
   --color-accent-foreground: #17140f;

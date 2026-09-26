@@ -1,13 +1,11 @@
 import { cn } from "@/lib/utils";
 
 export function SectionHeading({
-  eyebrow,
   title,
   description,
   align = "left",
   className,
 }: {
-  eyebrow?: string;
   title: string;
   description?: string;
   align?: "left" | "center";
@@ -21,9 +19,6 @@ export function SectionHeading({
         className,
       )}
     >
-      {eyebrow ? (
-        <span className="font-display text-lg italic text-accent">{eyebrow}</span>
-      ) : null}
       <h2 className="font-display text-3xl leading-tight text-balance text-fg sm:text-4xl lg:text-5xl">
         {title}
       </h2>

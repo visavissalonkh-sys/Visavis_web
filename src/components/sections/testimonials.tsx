@@ -8,7 +8,6 @@ export function Testimonials() {
     <section className="border-t border-border py-24 sm:py-32">
       <Container className="flex flex-col gap-14">
         <SectionHeading
-          eyebrow="Відгуки"
           title="Що кажуть клієнтки Visavis"
           align="center"
         />

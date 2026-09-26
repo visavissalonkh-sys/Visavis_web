@@ -30,7 +30,6 @@ export function FeaturedMasters({ masters }: { masters: FeaturedMaster[] }) {
       <Container className="flex flex-col gap-14">
         <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
           <SectionHeading
-            eyebrow="Команда"
             title="Майстри, яким довіряють"
             description="Кожен майстер спеціалізується на своєму напрямку та проходить постійне підвищення кваліфікації."
           />
@@ -44,7 +43,7 @@ export function FeaturedMasters({ masters }: { masters: FeaturedMaster[] }) {
             <Link
               key={master.slug}
               href={`/masters/${master.slug}`}
-              className="group flex h-full flex-col gap-6 rounded-3xl border border-border bg-surface p-7 transition-colors duration-300 hover:border-accent-border hover:bg-surface-2"
+              className="group flex h-full flex-col gap-6 rounded-2xl border border-border bg-surface p-7 transition-colors duration-300 hover:border-accent-border hover:bg-surface-2"
             >
               <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
                 {master.avatarUrl ? (

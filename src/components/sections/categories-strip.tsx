@@ -8,26 +8,19 @@ export function CategoriesStrip() {
     <section className="py-24 sm:py-32">
       <Container className="flex flex-col gap-14">
         <SectionHeading
-          eyebrow="Напрямки"
           title="П’ять напрямків, один стандарт якості"
           description="Кожна категорія — окрема команда майстрів, підібраний догляд і преміальні матеріали."
         />
 
-        <div className="grid gap-px overflow-hidden rounded-3xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-5">
-          {categories.map((category, index) => (
+        <div className="grid gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-5">
+          {categories.map((category) => (
             <Link
               key={category.slug}
               href={`/services/${category.slug}`}
-              className="group relative flex h-full flex-col justify-between gap-10 bg-surface p-8 transition-colors duration-300 hover:bg-surface-2"
+              className="group flex h-full flex-col justify-center gap-2 bg-surface px-8 py-10 transition-colors duration-300 hover:bg-surface-2"
             >
-              <span className="font-display text-sm text-fg-subtle">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-
-              <div className="flex flex-col gap-2">
-                <h3 className="font-display text-2xl text-fg">{category.name}</h3>
-                <p className="text-sm text-fg-muted">{category.tagline}</p>
-              </div>
+              <h3 className="font-display text-2xl text-fg">{category.name}</h3>
+              <p className="text-sm text-fg-muted">{category.tagline}</p>
             </Link>
           ))}
         </div>

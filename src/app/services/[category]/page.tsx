@@ -95,7 +95,7 @@ export default async function CategoryPage({
         <Link href="/services" className="text-sm text-fg-muted hover:text-fg">
           ← Усі послуги
         </Link>
-        <SectionHeading eyebrow={category.tagline} title={category.name} description={category.description} />
+        <SectionHeading title={category.name} description={category.description} />
       </div>
 
       <section className="grid gap-4 sm:grid-cols-2">
