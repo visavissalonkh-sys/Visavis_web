@@ -122,8 +122,16 @@
   }
 }
 
-* {
-  border-color: var(--color-border);
+/* Must be @layer base, not bare CSS: unlayered rules beat every layered
+   Tailwind utility regardless of source order or specificity, so a bare
+   `* { border-color }` here silently wins over EVERY border-{color}
+   utility sitewide (border-vv-gold, border-border-strong, hover:border-accent,
+   all of them) — found while the Hero CTA's border rendered as this
+   default instead of --vv-gold no matter what utility class was applied. */
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
 }
 
 html {
