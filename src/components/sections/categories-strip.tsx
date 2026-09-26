@@ -5,7 +5,7 @@ import { categories } from "@/lib/data/services";
 
 export function CategoriesStrip() {
   return (
-    <section className="py-24 sm:py-32">
+    <section id="categories" className="py-24 sm:py-32">
       <Container className="flex flex-col gap-14">
         <SectionHeading
           title="П’ять напрямків, один стандарт якості"
