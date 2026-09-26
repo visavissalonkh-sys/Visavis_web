@@ -210,7 +210,7 @@ export function SlotPicker({
           {loadingSlots ? (
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-11 animate-pulse rounded-lg bg-surface-2" />
+                <div key={i} className="h-12 animate-pulse rounded-lg bg-surface-2" />
               ))}
             </div>
           ) : slots && slots.length > 0 ? (
@@ -221,7 +221,7 @@ export function SlotPicker({
                   type="button"
                   disabled={lockingTime !== null}
                   onClick={() => lockSlot(time)}
-                  className="rounded-lg border border-border-strong py-2.5 text-sm text-fg transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+                  className="h-12 rounded-lg border border-border-strong text-sm text-fg transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
                 >
                   {lockingTime === time ? "…" : time}
                 </button>

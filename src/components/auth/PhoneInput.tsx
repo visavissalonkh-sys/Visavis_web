@@ -48,7 +48,7 @@ export function PhoneInput({
           const local = raw.startsWith("380") ? `0${raw.slice(3)}` : raw;
           onChange(local.slice(0, 10));
         }}
-        className="w-full rounded-xl border border-border-strong bg-surface px-4 py-3 text-lg tracking-wide text-fg outline-none transition-colors focus:border-accent disabled:opacity-50"
+        className="h-[52px] w-full rounded-xl border border-border-strong bg-surface px-4 text-lg tracking-wide text-fg outline-none transition-colors focus:border-accent disabled:opacity-50"
       />
     </div>
   );

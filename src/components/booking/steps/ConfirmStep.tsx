@@ -139,7 +139,7 @@ export function ConfirmStep({
               maxLength={500}
               rows={3}
               placeholder="Вперше у вас / алергія на гель / бажаю певний дизайн"
-              className="w-full resize-none rounded-xl border border-border-strong bg-surface px-4 py-3 text-sm text-fg outline-none transition-colors focus:border-accent"
+              className="w-full resize-none rounded-xl border border-border-strong bg-surface px-4 py-3 text-base text-fg outline-none transition-colors focus:border-accent"
             />
           </div>
 

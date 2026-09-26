@@ -39,7 +39,8 @@ export function MasterStep({
         </button>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* Desktop/tablet: card grid */}
+      <div className="hidden gap-4 sm:grid sm:grid-cols-2">
         {masters.map((master) => (
           <button
             key={master.id}
@@ -64,6 +65,38 @@ export function MasterStep({
 
             <div className="mt-auto text-sm text-fg">★ {master.rating.toFixed(1)}</div>
           </button>
+        ))}
+      </div>
+
+      {/* Mobile: vertical list — avatar left, name/specialty/rating middle, "Обрати" right */}
+      <div className="flex flex-col gap-3 sm:hidden">
+        {masters.map((master) => (
+          <div
+            key={master.id}
+            className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-4"
+          >
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-accent-border bg-accent-soft font-display text-accent">
+              {initials(master.name)}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate font-display text-lg text-fg">{master.name}</h3>
+              {master.isPopular ? (
+                <span className="text-xs text-accent">Найпопулярніший</span>
+              ) : master.bio ? (
+                <p className="truncate text-xs text-fg-muted">{master.bio}</p>
+              ) : null}
+              <div className="text-sm text-fg">★ {master.rating.toFixed(1)}</div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onSelect(master)}
+              className="flex h-11 shrink-0 items-center justify-center rounded-full border border-accent-border px-4 text-sm text-accent transition-colors hover:bg-accent-soft"
+            >
+              Обрати
+            </button>
+          </div>
         ))}
       </div>
 

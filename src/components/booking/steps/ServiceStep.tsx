@@ -48,7 +48,8 @@ export function ServiceStep({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Пошук послуги…"
-        className="w-full rounded-xl border border-border-strong bg-surface px-4 py-3 text-fg outline-none transition-colors focus:border-accent"
+        className="sticky z-10 w-full rounded-xl border border-border-strong bg-bg px-4 py-3 text-base text-fg outline-none transition-colors focus:border-accent"
+        style={{ top: "calc(var(--header-h) + 12px)" }}
       />
 
       {searchResults ? (

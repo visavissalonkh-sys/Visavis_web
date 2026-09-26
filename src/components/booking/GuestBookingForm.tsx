@@ -117,7 +117,7 @@ export function GuestBookingForm({
           onChange={(e) => setName(e.target.value)}
           maxLength={NAME_MAX}
           placeholder="Введіть ваше ім'я"
-          className="w-full rounded-xl border border-border-strong bg-surface px-4 py-3 text-fg outline-none transition-colors focus:border-accent disabled:opacity-50"
+          className="h-[52px] w-full rounded-xl border border-border-strong bg-surface px-4 text-base text-fg outline-none transition-colors focus:border-accent disabled:opacity-50"
         />
         {nameError ? <p className="text-sm text-red-400">{nameError}</p> : null}
       </div>
@@ -138,7 +138,7 @@ export function GuestBookingForm({
           maxLength={COMMENT_MAX}
           rows={3}
           placeholder="Побажання щодо стилю, алергії…"
-          className="w-full resize-none rounded-xl border border-border-strong bg-surface px-4 py-3 text-sm text-fg outline-none transition-colors focus:border-accent disabled:opacity-50"
+          className="w-full resize-none rounded-xl border border-border-strong bg-surface px-4 py-3 text-base text-fg outline-none transition-colors focus:border-accent disabled:opacity-50"
           disabled={submitting}
         />
       </div>
@@ -158,9 +158,23 @@ export function GuestBookingForm({
 
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
-      <ButtonAction onClick={submit} disabled={submitting} size="lg">
-        {submitting ? "Оформлюємо…" : "✅ Підтвердити запис"}
-      </ButtonAction>
+      {/* Sticky on mobile only — desktop keeps the button inline in the card. */}
+      <div className="hidden lg:block">
+        <ButtonAction onClick={submit} disabled={submitting} size="lg">
+          {submitting ? "Оформлюємо…" : "✅ Підтвердити запис"}
+        </ButtonAction>
+      </div>
+      <div
+        className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-bg px-6 pt-4 lg:hidden"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
+      >
+        <ButtonAction onClick={submit} disabled={submitting} size="lg" className="w-full">
+          {submitting ? "Оформлюємо…" : "✅ Підтвердити запис"}
+        </ButtonAction>
+      </div>
+      {/* Reserves the space the fixed bar above occupies so it never covers
+          the content that would otherwise be the last thing on the page. */}
+      <div className="h-20 lg:hidden" aria-hidden />
 
       <div className="flex flex-col items-center gap-2 border-t border-border pt-4 text-center text-sm">
         <span className="text-fg-muted">Вже є акаунт Visavis?</span>
