@@ -3,7 +3,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
-import { MagneticButton } from "@/components/ui/MagneticButton";
 import { categories } from "@/lib/data/services";
 import { gsap } from "@/lib/gsap";
 
@@ -77,16 +76,14 @@ export function Hero() {
             </p>
 
             <div className="hero-cta">
-              <MagneticButton>
-                <Button
-                  href="/booking"
-                  variant="outline"
-                  size="lg"
-                  className="w-fit rounded-none border-accent-border text-accent hover:text-accent-hover"
-                >
-                  Записатися
-                </Button>
-              </MagneticButton>
+              <Button
+                href="/booking"
+                variant="outline"
+                size="lg"
+                className="w-fit rounded-none border-accent-border text-accent hover:text-accent-hover"
+              >
+                Записатися
+              </Button>
             </div>
           </div>
         </div>
