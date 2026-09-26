@@ -25,14 +25,43 @@ export function CustomCursor() {
     const dot = dotRef.current;
     if (!dot) return;
 
-    gsap.set(dot, { xPercent: -50, yPercent: -50, x: window.innerWidth / 2, y: window.innerHeight / 2 });
+    gsap.set(dot, {
+      xPercent: -50,
+      yPercent: -50,
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+      scale: 1,
+      mixBlendMode: "difference",
+    });
 
     function handleMove(e: MouseEvent) {
       gsap.to(dot, { x: e.clientX, y: e.clientY, duration: 0.15, ease: "power2.out" });
     }
 
+    // Delegated on document (not bound per-element) so it keeps working as
+    // React adds/removes interactive elements — no re-binding needed.
+    const INTERACTIVE_SELECTOR = "a, button, input, select, textarea, [role='button']";
+    function handleOver(e: MouseEvent) {
+      if ((e.target as HTMLElement)?.closest(INTERACTIVE_SELECTOR)) {
+        gsap.to(dot, { scale: 1.5, mixBlendMode: "difference", duration: 0.25, ease: "power2.out" });
+      }
+    }
+    function handleOut(e: MouseEvent) {
+      const leavingInteractive = (e.target as HTMLElement)?.closest(INTERACTIVE_SELECTOR);
+      const enteringInteractive = (e.relatedTarget as HTMLElement | null)?.closest?.(INTERACTIVE_SELECTOR);
+      if (leavingInteractive && !enteringInteractive) {
+        gsap.to(dot, { scale: 1, duration: 0.25, ease: "power2.out" });
+      }
+    }
+
     window.addEventListener("mousemove", handleMove);
-    return () => window.removeEventListener("mousemove", handleMove);
+    document.addEventListener("mouseover", handleOver);
+    document.addEventListener("mouseout", handleOut);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      document.removeEventListener("mouseover", handleOver);
+      document.removeEventListener("mouseout", handleOut);
+    };
   }, [enabled]);
 
   if (!enabled) return null;
