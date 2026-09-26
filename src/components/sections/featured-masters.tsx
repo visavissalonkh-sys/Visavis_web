@@ -43,7 +43,7 @@ export function FeaturedMasters({ masters }: { masters: FeaturedMaster[] }) {
             <Link
               key={master.slug}
               href={`/masters/${master.slug}`}
-              className="group flex h-full flex-col gap-6 rounded-2xl border border-border bg-surface p-7 transition-colors duration-300 hover:border-accent-border hover:bg-surface-2"
+              className="group flex h-full flex-col gap-6 rounded-2xl border border-border bg-surface p-8 transition-colors duration-300 hover:border-accent-border hover:bg-surface-2"
             >
               <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
                 {master.avatarUrl ? (

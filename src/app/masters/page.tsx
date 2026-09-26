@@ -48,7 +48,7 @@ export default async function MastersPage() {
             <Link
               key={master.slug}
               href={`/masters/${master.slug}`}
-              className="flex flex-col gap-5 rounded-2xl border border-border bg-surface p-7 transition-colors hover:border-accent-border hover:bg-surface-2"
+              className="flex flex-col gap-5 rounded-2xl border border-border bg-surface p-8 transition-colors hover:border-accent-border hover:bg-surface-2"
             >
               <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
                 {master.avatarUrl ? (
