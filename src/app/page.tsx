@@ -106,14 +106,16 @@ export default async function Home() {
   });
 
   const featuredMasters = masters.map((master) => {
-    const primaryCategorySlug = master.specialties[0]?.service.category;
+    const specialtySlugs = [...new Set(master.specialties.map((s) => s.service.category))];
+    const specialtyNames = categories.filter((c) => specialtySlugs.includes(c.slug)).map((c) => c.name);
     return {
       slug: master.slug,
       name: master.name,
+      bio: master.bio,
       avatarUrl: master.avatarUrl,
       rating: Number(master.ratingCached),
       reviewCount: master._count.reviews,
-      primaryCategoryName: categories.find((c) => c.slug === primaryCategorySlug)?.name ?? null,
+      specialtyNames,
     };
   });
 
