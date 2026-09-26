@@ -59,6 +59,8 @@ export function CategoriesStrip() {
                 className="services-panel relative cursor-pointer overflow-hidden border-r border-border outline-none last:border-r-0 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
                 style={{ background: PANEL_TINTS[index] }}
               >
+                <div className="services-panel-glow pointer-events-none absolute inset-0" aria-hidden />
+
                 <div className="services-panel-label absolute inset-0 flex items-center justify-center">
                   <span
                     className="font-display whitespace-nowrap text-2xl text-fg"

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ButtonAction } from "@/components/ui/button";
 
-const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "visavis_bot";
+const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "salon_visavis_bot";
 
 export function TelegramLinkStatus({ linked, username }: { linked: boolean; username: string | null }) {
   const [unlinking, setUnlinking] = useState(false);

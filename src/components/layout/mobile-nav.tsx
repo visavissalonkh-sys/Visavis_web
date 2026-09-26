@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { MagneticButton } from "@/components/ui/MagneticButton";
 import { HeaderAuthAction } from "@/components/auth/HeaderAuthAction";
 
 const links = [
@@ -53,9 +54,11 @@ export function MobileNav() {
               </nav>
               <div className="flex flex-col items-start gap-4">
                 <HeaderAuthAction className="text-base" />
-                <Button href="/booking" size="lg" onClick={() => setOpen(false)}>
-                  Записатися
-                </Button>
+                <MagneticButton>
+                  <Button href="/booking" size="lg" onClick={() => setOpen(false)}>
+                    Записатися
+                  </Button>
+                </MagneticButton>
               </div>
             </div>,
             document.body,

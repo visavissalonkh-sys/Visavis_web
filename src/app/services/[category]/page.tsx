@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
+import { MagneticButton } from "@/components/ui/MagneticButton";
 import { getCategory, getServicesByCategory } from "@/lib/data/services";
 import { prisma } from "@/lib/prisma";
 
@@ -113,9 +114,11 @@ export default async function CategoryPage({
             <p className="text-sm text-fg-muted">{service.description}</p>
             <div className="flex items-center justify-between border-t border-border pt-4">
               <span className="text-xs text-fg-subtle">{service.durationMinutes} хв</span>
-              <Button href={`/booking?service=${service.slug}`} size="md">
-                Записатися
-              </Button>
+              <MagneticButton>
+                <Button href={`/booking?service=${service.slug}`} size="md">
+                  Записатися
+                </Button>
+              </MagneticButton>
             </div>
           </div>
         ))}

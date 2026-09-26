@@ -4,6 +4,8 @@ import { Inter, Cormorant_Garamond } from "next/font/google";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { AuthModalProvider } from "@/components/auth/AuthModalProvider";
+import { CustomCursor } from "@/components/ui/CustomCursor";
+import { PageLoadTransition } from "@/components/ui/PageLoadTransition";
 import { prisma } from "@/lib/prisma";
 import { buildLocationJsonLd } from "@/lib/seo/local-business";
 import { toPublicLocation } from "@/lib/locations";
@@ -55,6 +57,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${inter.variable} ${cormorant.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-bg text-fg">
+        <PageLoadTransition />
+        <CustomCursor />
         {locationJsonLds.map((jsonLd, index) => (
           <script
             key={index}

@@ -15,7 +15,7 @@ export type SessionUser = {
 type Step = "phone" | "otp" | "success";
 
 const RESEND_COOLDOWN_SECONDS = 300;
-const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "visavis_bot";
+const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "salon_visavis_bot";
 
 function normalizeForSubmit(digits: string): string {
   return `+38${digits}`;

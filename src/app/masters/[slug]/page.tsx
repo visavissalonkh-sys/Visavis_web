@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
+import { MagneticButton } from "@/components/ui/MagneticButton";
 import { prisma } from "@/lib/prisma";
 import { categories } from "@/lib/data/services";
 import { getSession } from "@/lib/auth";
@@ -148,7 +149,9 @@ export default async function MasterPage({
           </div>
 
           <div className="flex flex-wrap gap-3 pt-2">
-            <Button href={`/booking?master=${master.slug}`}>Записатися до {master.name.split(" ")[0]}</Button>
+            <MagneticButton>
+              <Button href={`/booking?master=${master.slug}`}>Записатися до {master.name.split(" ")[0]}</Button>
+            </MagneticButton>
             {favorited !== null && <FavoriteToggleButton masterId={master.id} initialFavorited={favorited} />}
             {master.instagramUrl ? (
               <a

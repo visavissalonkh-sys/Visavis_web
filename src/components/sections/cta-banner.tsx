@@ -1,5 +1,6 @@
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
+import { MagneticButton } from "@/components/ui/MagneticButton";
 
 export function CtaBanner() {
   return (
@@ -18,9 +19,11 @@ export function CtaBanner() {
             <h2 className="font-display max-w-2xl text-balance text-3xl text-fg sm:text-5xl">
               Оберіть послугу, майстра та зручний час — і залиште решту нам
             </h2>
-            <Button href="/booking" size="lg">
-              Записатися онлайн
-            </Button>
+            <MagneticButton>
+              <Button href="/booking" size="lg">
+                Записатися онлайн
+              </Button>
+            </MagneticButton>
           </div>
         </div>
       </Container>

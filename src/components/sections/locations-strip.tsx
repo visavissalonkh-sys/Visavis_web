@@ -15,18 +15,25 @@ export function LocationsStrip({ locations }: { locations: PublicLocation[] }) {
           {locations.map((location) => (
             <div
               key={location.slug}
-              className="group flex h-full flex-col justify-between gap-8 overflow-hidden rounded-2xl border border-border bg-surface p-8"
+              className="group flex h-full flex-col justify-between gap-8 overflow-hidden rounded-none border border-border bg-surface p-8"
             >
               <div
                 aria-hidden
-                className="relative flex h-32 items-center justify-center overflow-hidden rounded-2xl border border-border-strong"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(var(--color-border) 1px, transparent 1px), linear-gradient(90deg, var(--color-border) 1px, transparent 1px)",
-                  backgroundSize: "20px 20px",
-                  backgroundColor: "var(--color-surface-2)",
-                }}
+                className="relative flex h-32 items-center justify-center overflow-hidden rounded-none border border-border-strong"
+                style={{ background: "radial-gradient(ellipse at 50% 50%, var(--color-surface-2), var(--color-surface))" }}
               >
+                {[
+                  "left-3 top-3",
+                  "right-3 top-3",
+                  "bottom-3 left-3",
+                  "bottom-3 right-3",
+                ].map((position) => (
+                  <span
+                    key={position}
+                    className={`absolute h-1.5 w-1.5 rounded-full bg-accent ${position}`}
+                    style={{ boxShadow: "0 0 8px 2px color-mix(in srgb, var(--color-accent) 70%, transparent)" }}
+                  />
+                ))}
                 <span className="flex h-10 w-10 items-center justify-center rounded-full border border-accent-border bg-accent-soft text-accent">
                   ●
                 </span>

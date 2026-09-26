@@ -5,10 +5,11 @@ import type { PublicLocation } from "@/lib/locations";
 export function SiteFooter({ locations }: { locations: PublicLocation[] }) {
   return (
     <footer className="border-t border-border bg-surface">
+      <div className="h-px bg-accent" />
       <Container className="flex flex-col items-center gap-6 py-24 text-center">
         <span
           className="font-display text-fg"
-          style={{ fontWeight: 300, fontSize: "clamp(3rem, 9vw, 7rem)", letterSpacing: "0.08em" }}
+          style={{ fontWeight: 300, fontSize: "clamp(3rem, 8vw, 9rem)", letterSpacing: "0.08em" }}
         >
           VISAVIS
         </span>

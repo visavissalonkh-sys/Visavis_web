@@ -3,7 +3,7 @@
 import { buildIcsFile, downloadIcsFile } from "@/lib/ics";
 import { Button, ButtonAction } from "@/components/ui/button";
 
-const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "visavis_bot";
+const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "salon_visavis_bot";
 
 export function SuccessActions({
   bookingId,

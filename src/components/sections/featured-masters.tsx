@@ -30,10 +30,21 @@ export function FeaturedMasters({ masters }: { masters: FeaturedMaster[] }) {
     const ctx = gsap.context(() => {
       gsap.from(".masters-reveal", {
         autoAlpha: 0,
-        y: 20,
+        y: 30,
         duration: 0.7,
         ease: "power2.out",
         scrollTrigger: { trigger: sectionRef.current, start: "top 82%" },
+      });
+
+      // The big master name gets its own, more dramatic scroll-triggered
+      // entrance — sliding in from the left — separate from the section's
+      // own quiet fade-up above.
+      gsap.from(".master-name", {
+        x: -100,
+        autoAlpha: 0,
+        duration: 0.8,
+        ease: "power3.out",
+        scrollTrigger: { trigger: sectionRef.current, start: "top 75%" },
       });
     }, sectionRef);
     return () => ctx.revert();
@@ -67,10 +78,10 @@ export function FeaturedMasters({ masters }: { masters: FeaturedMaster[] }) {
             />
             <div
               aria-hidden
-              className="absolute h-3/5 w-3/5 rounded-[50%] border border-accent-border"
-              style={{ background: "linear-gradient(160deg, color-mix(in srgb, var(--color-accent) 30%, transparent), transparent 75%)" }}
+              className="absolute h-4/5 w-4/5 rounded-[50%] border border-accent-border"
+              style={{ background: "linear-gradient(160deg, color-mix(in srgb, var(--color-accent) 35%, transparent), transparent 75%)" }}
             />
-            <span className="font-display relative text-fg" style={{ fontSize: "clamp(2.5rem, 6vw, 4.5rem)" }}>
+            <span className="master-name font-display relative text-fg" style={{ fontSize: "clamp(2.5rem, 6vw, 4.5rem)" }}>
               {active.name}
             </span>
           </div>
@@ -102,8 +113,8 @@ export function FeaturedMasters({ masters }: { masters: FeaturedMaster[] }) {
                 key={master.slug}
                 type="button"
                 onClick={() => setActiveIndex(index)}
-                className={`whitespace-nowrap text-left font-display text-lg transition-colors ${
-                  index === activeIndex ? "text-accent" : "text-fg-subtle hover:text-fg"
+                className={`whitespace-nowrap text-left font-display text-lg underline-offset-4 transition-colors hover:text-accent hover:underline hover:decoration-accent ${
+                  index === activeIndex ? "text-accent" : "text-fg-subtle"
                 }`}
               >
                 {master.name}
