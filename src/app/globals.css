@@ -4,23 +4,23 @@
   color-scheme: dark;
 
   /* Surfaces */
-  --color-bg: #0a0a0b;
-  --color-surface: #131315;
-  --color-surface-2: #1b1b1e;
-  --color-border: #29292d;
-  --color-border-strong: #3a3a40;
+  --color-bg: #0a0b0d;
+  --color-surface: #15161a;
+  --color-surface-2: #1c1d22;
+  --color-border: #2a2b30;
+  --color-border-strong: #3c3d44;
 
   /* Text */
-  --color-fg: #f4f0e8;
-  --color-fg-muted: #a8a29a;
-  --color-fg-subtle: #726d66;
+  --color-fg: #ede9e2;
+  --color-fg-muted: #a39d92;
+  --color-fg-subtle: #6f6a62;
 
-  /* Accent — champagne gold */
-  --color-accent: #c9a463;
-  --color-accent-hover: #d9b878;
-  --color-accent-foreground: #171208;
-  --color-accent-soft: rgba(201, 164, 99, 0.12);
-  --color-accent-border: rgba(201, 164, 99, 0.35);
+  /* Accent — muted champagne, restrained/cooler direction */
+  --color-accent: #b3a17c;
+  --color-accent-hover: #c2b192;
+  --color-accent-foreground: #17140f;
+  --color-accent-soft: rgba(179, 161, 124, 0.10);
+  --color-accent-border: rgba(179, 161, 124, 0.28);
 }
 
 @theme inline {
@@ -38,7 +38,7 @@
   --color-accent-soft: var(--color-accent-soft);
   --color-accent-border: var(--color-accent-border);
 
-  --font-display: var(--font-playfair);
+  --font-display: var(--font-cormorant);
   --font-sans: var(--font-inter);
 
   --animate-fade-up: fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -90,6 +90,7 @@ body {
 
 .font-display {
   font-family: var(--font-display), Georgia, serif;
+  font-weight: 600;
 }
 
 /* Thin gold hairline divider used between sections */

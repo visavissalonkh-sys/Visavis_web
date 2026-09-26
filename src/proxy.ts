@@ -50,7 +50,7 @@ function buildCsp(nonce: string): string {
     // smaller blast radius than script execution, and nonce'ing every
     // framework-emitted style tag isn't practically supported today.
     "style-src 'self' 'unsafe-inline'",
-    // Fonts (Inter, Playfair Display) go through next/font/google, which
+    // Fonts (Inter, Cormorant Garamond) go through next/font/google, which
     // downloads and self-hosts them at build time — nothing is ever fetched
     // from fonts.googleapis.com/fonts.gstatic.com at runtime, so there's no
     // reason to trust those origins here.
