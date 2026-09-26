@@ -145,6 +145,9 @@ export function SlotPicker({
 
   async function lockSlot(time: string) {
     if (!selectedDate) return;
+    // Best-effort haptic tick on real touch devices — silently a no-op
+    // everywhere else (desktop browsers, iOS Safari has no vibrate API).
+    navigator.vibrate?.(10);
     setLockingTime(time);
     setError(null);
 
@@ -221,7 +224,7 @@ export function SlotPicker({
                   type="button"
                   disabled={lockingTime !== null}
                   onClick={() => lockSlot(time)}
-                  className="h-12 rounded-lg border border-border-strong text-sm text-fg transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+                  className="h-12 rounded-lg border border-border-strong text-sm text-fg transition-all duration-150 hover:border-accent hover:text-accent active:scale-95 disabled:opacity-50"
                 >
                   {lockingTime === time ? "…" : time}
                 </button>

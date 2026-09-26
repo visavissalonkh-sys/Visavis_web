@@ -10,6 +10,7 @@ import { categories } from "@/lib/data/services";
 import { getSession } from "@/lib/auth";
 import { isFavorite } from "@/lib/account";
 import { FavoriteToggleButton } from "@/components/account/FavoriteToggleButton";
+import { StickyBookCTA } from "@/components/ui/StickyBookCTA";
 
 // Not SSG: generateStaticParams and pre-rendering both need the DB reachable
 // at build time, which Railway's build step isn't guaranteed to have (this
@@ -147,7 +148,7 @@ export default async function MasterPage({
             <span className="text-fg-subtle">{master._count.reviews} відгуків</span>
           </div>
 
-          <div className="flex flex-wrap gap-3 pt-2">
+          <div id="master-main-cta" className="flex flex-wrap gap-3 pt-2">
             <Button href={`/booking?master=${master.slug}`}>Записатися до {master.name.split(" ")[0]}</Button>
             {favorited !== null && <FavoriteToggleButton masterId={master.id} initialFavorited={favorited} />}
             {master.instagramUrl ? (
@@ -198,6 +199,12 @@ export default async function MasterPage({
           </div>
         </section>
       ) : null}
+
+      <StickyBookCTA
+        anchorId="master-main-cta"
+        href={`/booking?master=${master.slug}`}
+        label={`Записатися до ${master.name.split(" ")[0]}`}
+      />
     </Container>
   );
 }

@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PhoneInput, isCompletePhoneDigits } from "@/components/auth/PhoneInput";
 import { OTPInput } from "@/components/auth/OTPInput";
 import { ButtonAction } from "@/components/ui/button";
+
+const SWIPE_DISMISS_THRESHOLD_PX = 120;
 
 export type SessionUser = {
   id: string;
@@ -41,6 +43,41 @@ export function AuthModal({
   const [error, setError] = useState<string | null>(null);
   const [telegramNotLinked, setTelegramNotLinked] = useState(false);
   const [countdown, setCountdown] = useState(0);
+
+  // Swipe-to-dismiss (mobile only, via touch-action: none below) — tracks
+  // the drag directly on the DOM node instead of React state, since this
+  // needs to move every touchmove frame and only transform/opacity are
+  // cheap enough to animate at that rate.
+  const cardRef = useRef<HTMLDivElement>(null);
+  const dragStartY = useRef<number | null>(null);
+
+  function handleCardTouchStart(e: React.TouchEvent) {
+    dragStartY.current = e.touches[0].clientY;
+  }
+
+  function handleCardTouchMove(e: React.TouchEvent) {
+    if (dragStartY.current === null || !cardRef.current) return;
+    const delta = e.touches[0].clientY - dragStartY.current;
+    if (delta <= 0) return; // only downward drags dismiss
+    cardRef.current.style.transform = `translateY(${delta}px)`;
+    cardRef.current.style.opacity = String(Math.max(0.4, 1 - delta / 400));
+  }
+
+  function handleCardTouchEnd(e: React.TouchEvent) {
+    if (dragStartY.current === null || !cardRef.current) return;
+    const delta = e.changedTouches[0].clientY - dragStartY.current;
+    dragStartY.current = null;
+    if (delta > SWIPE_DISMISS_THRESHOLD_PX) {
+      onClose();
+      return;
+    }
+    cardRef.current.style.transition = "transform 0.25s ease-out, opacity 0.25s ease-out";
+    cardRef.current.style.transform = "translateY(0)";
+    cardRef.current.style.opacity = "1";
+    setTimeout(() => {
+      if (cardRef.current) cardRef.current.style.transition = "";
+    }, 250);
+  }
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -118,7 +155,16 @@ export function AuthModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
-      <div className="animate-fade-up relative w-full max-w-md rounded-3xl border border-border bg-surface p-8 shadow-2xl">
+      <div
+        ref={cardRef}
+        onTouchStart={handleCardTouchStart}
+        onTouchMove={handleCardTouchMove}
+        onTouchEnd={handleCardTouchEnd}
+        className="animate-fade-up relative w-full max-w-md rounded-3xl border border-border bg-surface p-8 shadow-2xl"
+        style={{ touchAction: "pan-y" }}
+      >
+        <div className="absolute left-1/2 top-3 h-1 w-10 -translate-x-1/2 rounded-full bg-border-strong sm:hidden" aria-hidden />
+
         {step !== "success" && (
           <button
             type="button"
