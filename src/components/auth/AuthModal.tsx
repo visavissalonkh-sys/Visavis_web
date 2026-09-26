@@ -51,6 +51,12 @@ export function AuthModal({
   const phone = normalizeForSubmit(phoneDigits);
 
   async function sendOtp() {
+    // Explicit re-entrancy guard — otherwise a second call while one is
+    // already in flight (e.g. a fast double-click, or OTPInput's paste
+    // handler racing a keyboard completion) would fire a second request
+    // instead of being a no-op. Disabling the inputs while loading covers
+    // keyboard entry, but not every path that can call this.
+    if (loading) return;
     setLoading(true);
     setError(null);
     setTelegramNotLinked(false);
@@ -82,6 +88,7 @@ export function AuthModal({
   }
 
   async function verifyOtp(code: string) {
+    if (loading) return;
     setLoading(true);
     setError(null);
 
