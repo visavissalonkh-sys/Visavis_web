@@ -6,7 +6,7 @@ import type { PublicLocation } from "@/lib/locations";
 export function SiteFooter({ locations }: { locations: PublicLocation[] }) {
   return (
     <footer className="border-t border-border bg-surface">
-      <Container className="grid gap-12 py-16 lg:grid-cols-[1.2fr_1fr_1fr_1fr]">
+      <Container className="grid gap-14 py-20 lg:grid-cols-[1.2fr_1fr_1fr_1fr]">
         <div className="flex flex-col gap-4">
           <span className="font-display text-2xl tracking-[0.14em] text-fg">VISAVIS</span>
           <p className="max-w-xs text-sm leading-relaxed text-fg-muted">
@@ -65,7 +65,7 @@ export function SiteFooter({ locations }: { locations: PublicLocation[] }) {
         </div>
       </Container>
 
-      <div className="border-t border-border py-6">
+      <div className="border-t border-border py-8">
         <Container className="flex flex-col gap-2 text-xs text-fg-subtle sm:flex-row sm:items-center sm:justify-between">
           <span>© {new Date().getFullYear()} Visavis. Усі права захищені.</span>
           <span>Харків</span>
