@@ -31,11 +31,7 @@ export function Hero({ locationsCount }: { locationsCount: number }) {
 
       <Container className="relative flex min-h-[88vh] flex-col justify-center gap-14 py-24">
         <div className="animate-fade-up flex flex-col gap-8">
-          <span className="inline-flex w-fit items-center gap-3 rounded-full border border-accent-border bg-accent-soft px-4 py-1.5 text-xs font-medium uppercase tracking-[0.24em] text-accent">
-            Мережа преміальних салонів краси · Харків
-          </span>
-
-          <h1 className="font-display max-w-4xl text-balance text-5xl leading-[1.05] text-fg sm:text-6xl lg:text-7xl">
+          <h1 className="font-display max-w-4xl text-balance text-5xl font-bold leading-[1.05] text-fg sm:text-6xl lg:text-7xl">
             Краса, доведена до досконалості
           </h1>
 
