@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { HeaderAuthAction } from "@/components/auth/HeaderAuthAction";
@@ -35,28 +36,31 @@ export function MobileNav() {
         />
       </button>
 
-      {open ? (
-        <div className="fixed inset-0 z-40 flex flex-col bg-bg/98 px-6 pt-28 pb-10 backdrop-blur">
-          <nav className="flex flex-1 flex-col gap-6">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setOpen(false)}
-                className="font-display text-3xl text-fg transition-colors hover:text-accent"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-          <div className="flex flex-col items-start gap-4">
-            <HeaderAuthAction className="text-base" />
-            <Button href="/booking" size="lg" onClick={() => setOpen(false)}>
-              Записатися
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-40 flex flex-col bg-bg/98 px-6 pt-28 pb-10 backdrop-blur">
+              <nav className="flex flex-1 flex-col gap-6">
+                {links.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setOpen(false)}
+                    className="font-display text-3xl text-fg transition-colors hover:text-accent"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </nav>
+              <div className="flex flex-col items-start gap-4">
+                <HeaderAuthAction className="text-base" />
+                <Button href="/booking" size="lg" onClick={() => setOpen(false)}>
+                  Записатися
+                </Button>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

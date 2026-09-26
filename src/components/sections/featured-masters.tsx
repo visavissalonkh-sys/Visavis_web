@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
-import { Reveal } from "@/components/ui/reveal";
 
 function initials(name: string) {
   return name
@@ -41,35 +40,34 @@ export function FeaturedMasters({ masters }: { masters: FeaturedMaster[] }) {
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {masters.map((master, index) => (
-            <Reveal key={master.slug} delay={index * 60}>
-              <Link
-                href={`/masters/${master.slug}`}
-                className="group flex h-full flex-col gap-6 rounded-3xl border border-border bg-surface p-7 transition-colors duration-300 hover:border-accent-border hover:bg-surface-2"
-              >
-                <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
-                  {master.avatarUrl ? (
-                    <Image src={master.avatarUrl} alt={master.name} fill sizes="64px" className="object-cover" />
-                  ) : (
-                    <span className="font-display text-lg text-accent">{initials(master.name)}</span>
-                  )}
-                </div>
+          {masters.map((master) => (
+            <Link
+              key={master.slug}
+              href={`/masters/${master.slug}`}
+              className="group flex h-full flex-col gap-6 rounded-3xl border border-border bg-surface p-7 transition-colors duration-300 hover:border-accent-border hover:bg-surface-2"
+            >
+              <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-accent-border bg-accent-soft">
+                {master.avatarUrl ? (
+                  <Image src={master.avatarUrl} alt={master.name} fill sizes="64px" className="object-cover" />
+                ) : (
+                  <span className="font-display text-lg text-accent">{initials(master.name)}</span>
+                )}
+              </div>
 
-                <div className="flex flex-1 flex-col gap-2">
-                  <h3 className="font-display text-xl text-fg">{master.name}</h3>
-                  {master.primaryCategoryName ? (
-                    <span className="mt-1 w-fit rounded-full border border-border-strong px-3 py-1 text-xs text-fg-subtle">
-                      {master.primaryCategoryName}
-                    </span>
-                  ) : null}
-                </div>
+              <div className="flex flex-1 flex-col gap-2">
+                <h3 className="font-display text-xl text-fg">{master.name}</h3>
+                {master.primaryCategoryName ? (
+                  <span className="mt-1 w-fit rounded-full border border-border-strong px-3 py-1 text-xs text-fg-subtle">
+                    {master.primaryCategoryName}
+                  </span>
+                ) : null}
+              </div>
 
-                <div className="flex items-center justify-between border-t border-border pt-4 text-sm">
-                  <span className="text-fg">★ {master.rating.toFixed(1)}</span>
-                  <span className="text-fg-subtle">{master.reviewCount} відгуків</span>
-                </div>
-              </Link>
-            </Reveal>
+              <div className="flex items-center justify-between border-t border-border pt-4 text-sm">
+                <span className="text-fg">★ {master.rating.toFixed(1)}</span>
+                <span className="text-fg-subtle">{master.reviewCount} відгуків</span>
+              </div>
+            </Link>
           ))}
         </div>
       </Container>
