@@ -6,6 +6,7 @@ import { getPublicLocations } from "@/lib/locations";
 import { Hero } from "@/components/sections/hero";
 import { CategoriesStrip } from "@/components/sections/categories-strip";
 import { FeaturedMasters } from "@/components/sections/featured-masters";
+import { StatsAccent } from "@/components/sections/stats-accent";
 import { LocationsStrip } from "@/components/sections/locations-strip";
 import { Testimonials } from "@/components/sections/testimonials";
 import { CtaBanner } from "@/components/sections/cta-banner";
@@ -94,6 +95,7 @@ export default async function Home() {
   };
 
   const locations = await getPublicLocations();
+  const activeMasterCount = await prisma.master.count({ where: { isActive: true } });
 
   const masters = await prisma.master.findMany({
     where: { isActive: true },
@@ -130,9 +132,14 @@ export default async function Home() {
       />
       <Hero />
       <CategoriesStrip />
+      <div className="section-divider-to-cream" aria-hidden />
       <FeaturedMasters masters={featuredMasters} />
-      <LocationsStrip locations={locations} />
+      <div className="section-divider-to-dark" aria-hidden />
+      <StatsAccent masterCount={activeMasterCount} locationCount={locations.length} />
+      <div className="section-divider-to-cream" aria-hidden />
       <Testimonials />
+      <div className="section-divider-to-dark" aria-hidden />
+      <LocationsStrip locations={locations} />
       <CtaBanner />
     </>
   );
