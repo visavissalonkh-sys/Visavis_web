@@ -31,6 +31,35 @@
   --color-on-cream: #1a1510;
   --color-on-cream-muted: #6b5b45;
   --color-accent-on-cream: #8b6914;
+
+  /* --- Vis-à-vis design system (DESIGN.md) — public pages ---------------
+     A second, independent token set. Deliberately NOT reusing --color-bg/
+     --color-fg/--color-cream* above: those stay exactly as they are for
+     booking/account/admin, which this redesign does not touch. Night is
+     visually close to the original --color-bg family but is its own named
+     scale so the two systems can diverge without fighting each other. */
+  --night: #0d0a08;
+  --night-2: #16120e;
+  --ink-light: #f6f1e7;
+  --ink-light-2: #b9ae9c;
+
+  --morning: #f4eee4;
+  --morning-2: #ebe3d5;
+  --ink-dark: #1a1510;
+  --ink-dark-2: #6b5d4b;
+
+  --vv-gold: #b3a17c;
+  --vv-gold-deep: #83693a; /* darkened from #8b6f3e — see DESIGN.md §5 (4.10:1 → 4.54:1) */
+  --glint: rgba(255, 248, 232, 0.9);
+
+  /* Motion tokens (DESIGN.md §3.4) */
+  --dur-micro: 180ms;
+  --dur-ui: 320ms;
+  --dur-reveal: 900ms;
+  --dur-hero: 1600ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-glint: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 @theme inline {
@@ -53,6 +82,18 @@
   --color-on-cream: var(--color-on-cream);
   --color-on-cream-muted: var(--color-on-cream-muted);
   --color-accent-on-cream: var(--color-accent-on-cream);
+
+  --color-night: var(--night);
+  --color-night-2: var(--night-2);
+  --color-ink-light: var(--ink-light);
+  --color-ink-light-2: var(--ink-light-2);
+  --color-morning: var(--morning);
+  --color-morning-2: var(--morning-2);
+  --color-ink-dark: var(--ink-dark);
+  --color-ink-dark-2: var(--ink-dark-2);
+  --color-vv-gold: var(--vv-gold);
+  --color-vv-gold-deep: var(--vv-gold-deep);
+  --color-glint: var(--glint);
 
   --font-display: var(--font-cormorant);
   --font-sans: var(--font-inter);
@@ -122,6 +163,26 @@ body {
 
 .text-balance {
   text-wrap: balance;
+}
+
+/* Shared photo treatment (DESIGN.md §7.2) — the one filter recipe applied to
+   every real photo on the public pages, so shots from different times/
+   people still read as one campaign. Slight warmth, slightly lowered
+   shadow contrast, never applied to anything but photos (ArtSlot's empty
+   placeholder state uses its own grain, not this). */
+.vv-photo-treatment {
+  filter: sepia(8%) saturate(108%) contrast(96%) brightness(102%);
+}
+
+/* ~4% grain, shared by ArtSlot's empty placeholder AND real photos, so a
+   slot never visibly "upgrades" texture the moment a src appears. Apply
+   only to a dedicated absolutely-positioned overlay element (`inset-0`)
+   stacked on top of the photo/fill — never to the photo or content element
+   itself, since this class's own opacity would make that element 96%
+   transparent rather than adding a faint texture on top of it. */
+.vv-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.04;
 }
 
 /* Diagonal seams between a dark section and a cream one, and back — used
