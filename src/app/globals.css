@@ -21,6 +21,16 @@
   --color-accent-foreground: #17140f;
   --color-accent-soft: rgba(179, 161, 124, 0.10);
   --color-accent-border: rgba(179, 161, 124, 0.28);
+
+  /* Cream — the light counterpart used on alternating sections (Masters,
+     Testimonials, Locations cards, the footer's contact strip). Never
+     applied globally: color-scheme stays dark, these are opt-in per
+     section via bg-cream/text-on-cream utilities. */
+  --color-cream: #f5f0e8;
+  --color-cream-dark: #ede6d6;
+  --color-on-cream: #1a1510;
+  --color-on-cream-muted: #6b5b45;
+  --color-accent-on-cream: #8b6914;
 }
 
 @theme inline {
@@ -37,6 +47,12 @@
   --color-accent-foreground: var(--color-accent-foreground);
   --color-accent-soft: var(--color-accent-soft);
   --color-accent-border: var(--color-accent-border);
+
+  --color-cream: var(--color-cream);
+  --color-cream-dark: var(--color-cream-dark);
+  --color-on-cream: var(--color-on-cream);
+  --color-on-cream-muted: var(--color-on-cream-muted);
+  --color-accent-on-cream: var(--color-accent-on-cream);
 
   --font-display: var(--font-cormorant);
   --font-sans: var(--font-inter);
@@ -106,6 +122,17 @@ body {
 
 .text-balance {
   text-wrap: balance;
+}
+
+/* Diagonal seams between a dark section and a cream one, and back — used
+   between Hero→Masters and Testimonials→Locations. */
+.section-divider-to-cream {
+  height: 80px;
+  background: linear-gradient(to bottom right, var(--color-bg) 50%, var(--color-cream) 50%);
+}
+.section-divider-to-dark {
+  height: 80px;
+  background: linear-gradient(to bottom right, var(--color-cream-dark) 50%, var(--color-bg) 50%);
 }
 
 .font-display {
