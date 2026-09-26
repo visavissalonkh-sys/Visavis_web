@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { WizardProgress } from "@/components/booking/WizardProgress";
@@ -66,10 +66,19 @@ export function BookingWizard({
   const initialCategory = searchParams.get("category");
 
   const [lockInfo, setLockInfo] = useState<LockInfo | null>(null);
-  // Read once, at mount, whether there's a resumable draft for the bare
-  // /booking route — a lazy initializer instead of an effect since this only
-  // ever needs to run once and never reacts to later prop/state changes.
-  const [resumeDraft, setResumeDraft] = useState<Draft | null>(() => (searchParams.get("service") ? null : readDraft()));
+  // Always starts null so the very first client render matches the server
+  // (which can never see localStorage) — reading the real draft in a lazy
+  // initializer instead caused a hydration mismatch, since the client's
+  // first render pass would already see it while SSR's couldn't. The
+  // effect below fills it in immediately after mount instead.
+  const [resumeDraft, setResumeDraft] = useState<Draft | null>(null);
+  useEffect(() => {
+    if (searchParams.get("service")) return;
+    setResumeDraft(readDraft());
+    // Intentionally runs once on mount only — a resumable draft is only
+    // relevant for the very first render of the bare /booking route.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Deep link from a master's page (`/booking?master=slug`) with no service
   // yet — remembered so picking a matching service can jump straight past
   // the master-selection step instead of being cleared.
