@@ -206,7 +206,10 @@ model MasterAvailabilityOverride {
 
 model Booking {
   id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clientId      String        @map("client_id") @db.Uuid
+  // Nullable: a guest booking (isGuest = true) has no User row yet — see
+  // guestName/guestPhone below. Every write path must treat exactly one of
+  // {clientId set, isGuest true} as true; never both, never neither.
+  clientId      String?       @map("client_id") @db.Uuid
   masterId      String        @map("master_id") @db.Uuid
   locationId    String        @map("location_id") @db.Uuid
   serviceId     String        @map("service_id") @db.Uuid
@@ -217,10 +220,16 @@ model Booking {
   status        BookingStatus @default(pending)
   paymentStatus PaymentStatus @default(not_required) @map("payment_status")
   createdVia    BookingSource @default(web) @map("created_via")
+  // Guest-checkout fields (Stage: guest booking). Populated only when
+  // clientId is null; cleared by the bot's merge_guest_bookings once the
+  // guest's phone number registers a real account (Visavis_bot/bot/handlers/common.py).
+  isGuest       Boolean       @default(false) @map("is_guest")
+  guestName     String?       @map("guest_name")
+  guestPhone    String?       @map("guest_phone")
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
-  client   User     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client   User?    @relation(fields: [clientId], references: [id], onDelete: Cascade)
   master   Master   @relation(fields: [masterId], references: [id], onDelete: Restrict)
   location Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
   service  Service  @relation(fields: [serviceId], references: [id], onDelete: Restrict)
@@ -232,6 +241,7 @@ model Booking {
   @@index([masterId, date])
   @@index([locationId, date])
   @@index([clientId])
+  @@index([guestPhone])
   @@map("bookings")
 }
 

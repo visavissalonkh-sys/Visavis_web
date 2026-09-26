@@ -11,7 +11,8 @@ export function ClientCard({
 }: {
   client: {
     name: string | null;
-    phone: string;
+    phone: string | null;
+    isGuest?: boolean;
     totalVisits: number;
     recentVisits: { date: string; serviceName: string; status: string; comment: string | null }[];
   };
@@ -23,10 +24,19 @@ export function ClientCard({
           {initials(client.name)}
         </div>
         <div>
-          <div className="text-fg">{client.name ?? "Клієнт"}</div>
-          <a href={`tel:${client.phone}`} className="text-sm text-accent hover:text-accent-hover">
-            {client.phone}
-          </a>
+          <div className="flex items-center gap-2 text-fg">
+            {client.name ?? "Клієнт"}
+            {client.isGuest ? (
+              <span className="rounded-full border border-accent-border bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent">
+                Гість
+              </span>
+            ) : null}
+          </div>
+          {client.phone ? (
+            <a href={`tel:${client.phone}`} className="text-sm text-accent hover:text-accent-hover">
+              {client.phone}
+            </a>
+          ) : null}
         </div>
       </div>
 

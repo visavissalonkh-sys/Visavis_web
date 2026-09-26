@@ -8,6 +8,7 @@ import { ServiceStep } from "@/components/booking/steps/ServiceStep";
 import { MasterStep } from "@/components/booking/steps/MasterStep";
 import { DateTimeStep } from "@/components/booking/steps/DateTimeStep";
 import { ConfirmStep } from "@/components/booking/steps/ConfirmStep";
+import { GuestBookingSuccess } from "@/components/booking/GuestBookingSuccess";
 import type { BookingWizardData, WizardStep } from "@/components/booking/types";
 
 const DRAFT_KEY = "visavis:booking:draft";
@@ -54,12 +55,22 @@ type LockInfo = { locationId: string; date: string; time: string; lockToken: str
 export function BookingWizard({
   data,
   isAuthenticated,
+  currentUser,
 }: {
   data: BookingWizardData;
   isAuthenticated: boolean;
+  currentUser: { name: string | null; phone: string } | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [guestSuccess, setGuestSuccess] = useState<{
+    bookingId: string;
+    serviceName: string;
+    masterName: string;
+    locationAddress: string;
+    date: string;
+    time: string;
+  } | null>(null);
 
   const serviceSlug = searchParams.get("service");
   const masterSlug = searchParams.get("master");
@@ -117,6 +128,22 @@ export function BookingWizard({
     );
     return data.masters.filter((m) => masterIds.has(m.id));
   }, [data.masterSpecialties, data.masters, service]);
+
+  if (guestSuccess) {
+    return (
+      <Container className="flex flex-col gap-10 py-16">
+        <div className="mx-auto w-full max-w-3xl">
+          <GuestBookingSuccess
+            serviceName={guestSuccess.serviceName}
+            masterName={guestSuccess.masterName}
+            locationAddress={guestSuccess.locationAddress}
+            date={guestSuccess.date}
+            time={guestSuccess.time}
+          />
+        </div>
+      </Container>
+    );
+  }
 
   return (
     <Container className="flex flex-col gap-10 py-16">
@@ -192,11 +219,23 @@ export function BookingWizard({
             lockToken={lockInfo.lockToken}
             expiresAt={lockInfo.expiresAt}
             isAuthenticated={isAuthenticated}
+            currentUser={currentUser}
             onBack={() => setLockInfo(null)}
             onExpired={() => setLockInfo(null)}
             onSuccess={(bookingId) => {
               clearDraft();
               router.push(`/booking/success?id=${bookingId}`);
+            }}
+            onGuestSuccess={(bookingId) => {
+              clearDraft();
+              setGuestSuccess({
+                bookingId,
+                serviceName: service.name,
+                masterName: master.name,
+                locationAddress: location.address,
+                date: lockInfo.date,
+                time: lockInfo.time,
+              });
             }}
           />
         )}

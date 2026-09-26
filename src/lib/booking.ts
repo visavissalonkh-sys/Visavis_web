@@ -8,6 +8,26 @@ import { redis } from "@/lib/redis";
 export const SLOT_INTERVAL_MINUTES = 30;
 export const LOCK_TTL_SECONDS = 600; // 10 minutes
 
+type BookingContactFields = {
+  client: { name: string | null; phone: string } | null;
+  guestName: string | null;
+  guestPhone: string | null;
+};
+
+/** Display name for a booking's contact — the linked client's name, or the
+ * guest's name for a guest booking. Never null: falls back to the phone,
+ * then a generic label, so callers never need their own fallback chain. */
+export function bookingContactName(booking: BookingContactFields): string {
+  return booking.client?.name ?? booking.guestName ?? bookingContactPhone(booking) ?? "Клієнт";
+}
+
+/** Phone for a booking's contact — the linked client's phone, or the guest's
+ * phone for a guest booking. Both are always one or the other by the
+ * `bookings_guest_or_client_check` DB constraint (see the migration). */
+export function bookingContactPhone(booking: BookingContactFields): string | null {
+  return booking.client?.phone ?? booking.guestPhone ?? null;
+}
+
 // Duplicated from lib/timezone.ts's SALON_TIMEZONE, not imported — that file
 // imports parseDateOnly from this one, so importing it back here would be
 // circular.

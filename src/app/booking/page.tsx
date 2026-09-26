@@ -38,10 +38,15 @@ export default async function BookingPage() {
     return top;
   }, null);
 
+  const currentUser = session
+    ? await prisma.user.findUnique({ where: { id: session.sub }, select: { name: true, phone: true } })
+    : null;
+
   return (
     <Suspense fallback={null}>
       <BookingWizard
         isAuthenticated={session !== null}
+        currentUser={currentUser}
         data={{
           categories,
           services: services.map((s) => ({

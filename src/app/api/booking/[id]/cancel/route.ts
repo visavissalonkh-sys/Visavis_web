@@ -83,7 +83,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/bookin
     ).catch((error) => console.error("Failed to notify master of cancellation", error));
   }
 
-  const client = await prisma.user.findUnique({ where: { id: booking.clientId } });
+  const client = booking.clientId ? await prisma.user.findUnique({ where: { id: booking.clientId } }) : null;
   if (client?.telegramId) {
     sendTelegramMessage(
       client.telegramId.toString(),

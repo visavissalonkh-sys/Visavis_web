@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { normalizePhone } from "@/lib/phone";
 
-const phoneSchema = z
+// Exported — reused by validation/booking.ts's guest-checkout schema, so a
+// phone typed into either form normalizes identically.
+export const phoneSchema = z
   .string()
   .trim()
   .transform((value, ctx) => {

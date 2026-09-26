@@ -42,7 +42,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/master
   await queueSheetsSync(id, "status_changed");
   await logMasterAudit({ actorId: session.sub, action: "booking_confirmed", entityType: "booking", entityId: id });
 
-  if (booking.client.telegramId) {
+  if (booking.client?.telegramId) {
     const whenText = formatBookingDateTimeUk(booking.date, booking.timeFrom);
     sendTelegramMessage(
       booking.client.telegramId.toString(),

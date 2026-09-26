@@ -8,6 +8,8 @@ import {
   CriticalSectionBusyError,
   SlotUnavailableError,
   addMinutesToTime,
+  bookingContactName,
+  bookingContactPhone,
   formatBookingDateTimeUk,
   formatDateOnly,
   getAvailableSlots,
@@ -245,8 +247,9 @@ export async function getAdminDashboardData(filters: AdminDashboardFilters = {})
     todayBookings: filteredTodayBookings.map((b) => ({
       id: b.id,
       timeFrom: b.timeFrom,
-      clientName: b.client.name,
-      clientPhone: b.client.phone,
+      clientName: bookingContactName(b),
+      clientPhone: bookingContactPhone(b),
+      isGuest: b.isGuest,
       masterName: b.master.name,
       serviceName: b.service.name,
       locationName: b.location.name,
@@ -355,8 +358,9 @@ export async function getAdminBookingsList(filters: AdminBookingsFilters) {
       id: b.id,
       date: formatDateOnly(b.date),
       timeFrom: b.timeFrom,
-      clientName: b.client.name,
-      clientPhone: b.client.phone,
+      clientName: bookingContactName(b),
+      clientPhone: bookingContactPhone(b),
+      isGuest: b.isGuest,
       masterName: b.master.name,
       serviceName: b.service.name,
       locationName: b.location.name,
@@ -427,7 +431,7 @@ export async function cancelAdminBooking(
       `❌ <b>Запис скасовано адміністратором</b>\n\n${booking.service.name}, ${whenText}\n${booking.location.address}`,
     ).catch((error) => console.error("Failed to notify master of admin cancellation", error));
   }
-  if (booking.client.telegramId) {
+  if (booking.client?.telegramId) {
     sendTelegramMessage(
       booking.client.telegramId.toString(),
       `Ваш запис на ${whenText} скасовано адміністрацією. Перепрошуємо за незручності — оберіть, будь ласка, інший час на сайті.`,
@@ -439,7 +443,7 @@ export async function cancelAdminBooking(
       "❌ <b>Скасування запису</b>",
       "Скасував: адміністратор",
       "",
-      `Клієнт: ${booking.client.name ?? booking.client.phone}`,
+      `Клієнт: ${bookingContactName(booking)}`,
       `Майстер: ${booking.master.name}`,
       `Послуга: ${booking.service.name}`,
       `📅 ${whenText}`,
@@ -497,7 +501,7 @@ export async function updateAdminBookingStatus(
 
   if (newStatus === "cancelled") {
     const whenText = formatBookingDateTimeUk(booking.date, booking.timeFrom);
-    if (booking.client.telegramId) {
+    if (booking.client?.telegramId) {
       sendTelegramMessage(
         booking.client.telegramId.toString(),
         `Ваш запис на ${whenText} скасовано адміністрацією. Перепрошуємо за незручності — оберіть, будь ласка, інший час на сайті.`,
@@ -508,7 +512,7 @@ export async function updateAdminBookingStatus(
         "❌ <b>Скасування запису</b>",
         "Скасував: адміністратор",
         "",
-        `Клієнт: ${booking.client.name ?? booking.client.phone}`,
+        `Клієнт: ${bookingContactName(booking)}`,
         `Майстер: ${booking.master.name}`,
         `Послуга: ${booking.service.name}`,
         `📅 ${whenText}`,
@@ -1606,8 +1610,8 @@ export async function generateAdminReportXlsx(
     sheet.addRow({
       date: formatDateOnly(b.date),
       time: `${b.timeFrom}–${b.timeTo}`,
-      client: b.client.name ?? b.client.phone,
-      phone: b.client.phone,
+      client: bookingContactName(b) + (b.isGuest ? " (гість)" : ""),
+      phone: bookingContactPhone(b) ?? "",
       master: b.master.name,
       service: b.service.name,
       category: b.service.category,

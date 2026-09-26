@@ -12,7 +12,8 @@ export type BookingListItem = {
   serviceName: string;
   locationName: string;
   clientName: string | null;
-  clientPhone: string;
+  clientPhone: string | null;
+  isGuest?: boolean;
 };
 
 export function BookingCard({ booking }: { booking: BookingListItem }) {
@@ -28,7 +29,9 @@ export function BookingCard({ booking }: { booking: BookingListItem }) {
           {dateLabel}, {booking.timeFrom} — {booking.serviceName}
         </span>
         <span className="text-sm text-fg-muted">
-          {booking.clientName ?? "Клієнт"} · {booking.clientPhone}
+          {booking.clientName ?? "Клієнт"}
+          {booking.clientPhone ? ` · ${booking.clientPhone}` : ""}
+          {booking.isGuest ? " · Гість" : ""}
         </span>
         <span className="text-xs text-fg-subtle">{booking.locationName}</span>
       </div>

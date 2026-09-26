@@ -3,6 +3,8 @@ import type { AvailabilityOverrideType, BookingStatus, Prisma } from "@prisma/cl
 import { prisma } from "@/lib/prisma";
 import type { SessionPayload } from "@/lib/auth";
 import {
+  bookingContactName,
+  bookingContactPhone,
   formatDateOnly,
   minutesToTime,
   parseDateOnly,
@@ -102,8 +104,9 @@ export async function getDashboardData(masterId: string, masterName: string) {
         status: b.status,
         serviceName: b.service.name,
         locationName: b.location.name,
-        clientName: b.client.name,
-        clientPhone: b.client.phone,
+        clientName: bookingContactName(b),
+        clientPhone: bookingContactPhone(b),
+        isGuest: b.isGuest,
       })),
     },
     upcoming: [...upcomingByDay.entries()].map(([date, count]) => ({ date, count })),
@@ -156,8 +159,9 @@ export async function getBookingsList({
       status: b.status,
       serviceName: b.service.name,
       locationName: b.location.name,
-      clientName: b.client.name,
-      clientPhone: b.client.phone,
+      clientName: bookingContactName(b),
+      clientPhone: bookingContactPhone(b),
+      isGuest: b.isGuest,
     })),
     total,
     page,
@@ -176,13 +180,22 @@ export async function getBookingDetail(masterId: string, bookingId: string) {
   const booking = await getOwnedBooking(masterId, bookingId);
   if (!booking) return null;
 
+  // Guest bookings have no clientId to group by — grouping by `guestPhone`
+  // instead keeps history scoped to the same person and never leaks across
+  // *different* guests (every guest booking shares clientId: null, so a
+  // naive `where: { clientId: booking.clientId }` would match everyone's
+  // guest history at once).
+  const historyWhere = booking.clientId
+    ? { clientId: booking.clientId, masterId, id: { not: bookingId } }
+    : { guestPhone: booking.guestPhone, isGuest: true, masterId, id: { not: bookingId } };
+
   const [auditEntries, clientBookings] = await Promise.all([
     prisma.adminAuditLog.findMany({
       where: { entityType: "booking", entityId: bookingId },
       orderBy: { createdAt: "asc" },
     }),
     prisma.booking.findMany({
-      where: { clientId: booking.clientId, masterId, id: { not: bookingId } },
+      where: historyWhere,
       include: { service: true },
       orderBy: [{ date: "desc" }, { timeFrom: "desc" }],
       take: 5,
@@ -197,7 +210,7 @@ export async function getBookingDetail(masterId: string, bookingId: string) {
   ];
 
   const totalVisits = await prisma.booking.count({
-    where: { clientId: booking.clientId, masterId, status: "completed" },
+    where: { ...historyWhere, id: undefined, status: "completed" },
   });
 
   return {
@@ -214,9 +227,9 @@ export async function getBookingDetail(masterId: string, bookingId: string) {
       locationAddress: booking.location.address,
     },
     client: {
-      id: booking.client.id,
-      name: booking.client.name,
-      phone: booking.client.phone,
+      name: bookingContactName(booking),
+      phone: bookingContactPhone(booking),
+      isGuest: booking.isGuest,
       totalVisits,
       recentVisits: clientBookings.map((b) => ({
         date: formatDateOnly(b.date),
@@ -384,7 +397,7 @@ export async function createOverride(
           "",
           `Наявні записи на цю дату (${conflicting.length}):`,
           ...conflicting.map(
-            (b) => `• о ${b.timeFrom} — ${b.client.name ?? b.client.phone}, ${b.service.name}`,
+            (b) => `• о ${b.timeFrom} — ${bookingContactName(b)}, ${b.service.name}`,
           ),
         ].join("\n"),
       ).catch((error) => console.error("Failed to notify admins of day-off conflict", error));
@@ -494,7 +507,7 @@ export async function getWeekSchedule(
         slots.push({
           time: minutesToTime(t),
           status: "booked",
-          booking: { id: booking.id, serviceName: booking.service.name, clientName: booking.client.name },
+          booking: { id: booking.id, serviceName: booking.service.name, clientName: bookingContactName(booking) },
         });
       } else if (inRanges(t, effectiveWorking)) {
         slots.push({ time: minutesToTime(t), status: "available" });

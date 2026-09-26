@@ -31,8 +31,12 @@ export default async function BookingSuccessPage({
   });
 
   // IDOR guard — proxy.ts already redirects unauthenticated visitors, but the
-  // booking id itself must still belong to the signed-in user.
-  if (!booking || booking.clientId !== session.sub) notFound();
+  // booking id itself must still belong to the signed-in user. A guest
+  // booking (clientId null) can never match a real session.sub, so this also
+  // rules out `booking.client` being null below — this page is authenticated-
+  // only; a guest sees GuestBookingSuccess instead, client-side, right after
+  // the /api/booking/guest response, without a round trip through this route.
+  if (!booking || booking.clientId !== session.sub || !booking.client) notFound();
 
   const start = visitStartsAt(booking.date, booking.timeFrom);
   const end = new Date(start.getTime() + booking.service.durationMinutes * 60 * 1000);

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { notifyAdmins } from "@/lib/alerts";
+import { bookingContactName } from "@/lib/booking";
 
 export const createReviewSchema = z.object({
   bookingId: z.string().uuid(),
@@ -47,7 +48,7 @@ export async function createReview(
       [
         "⭐ <b>Новий відгук на модерацію</b>",
         "",
-        `Клієнт: ${booking.client.name ?? booking.client.phone}`,
+        `Клієнт: ${bookingContactName(booking)}`,
         `Майстер: ${booking.master.name}`,
         `Оцінка: ${"★".repeat(input.rating)}${"☆".repeat(5 - input.rating)}`,
       ].join("\n"),

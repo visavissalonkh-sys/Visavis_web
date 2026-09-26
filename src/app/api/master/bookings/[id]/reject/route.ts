@@ -57,7 +57,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/master
     metadata: reason ? { reason } : undefined,
   });
 
-  if (booking.client.telegramId) {
+  if (booking.client?.telegramId) {
     const whenText = formatBookingDateTimeUk(booking.date, booking.timeFrom);
     const reasonLine = reason ? `\nПричина: ${reason}` : "";
     sendTelegramMessage(

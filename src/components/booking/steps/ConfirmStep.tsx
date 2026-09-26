@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { uk } from "date-fns/locale";
 import { ButtonAction } from "@/components/ui/button";
-import { useAuthModal } from "@/components/auth/AuthModalProvider";
+import { GuestBookingForm } from "@/components/booking/GuestBookingForm";
 import type { WizardLocation, WizardMaster, WizardService } from "@/components/booking/types";
 
 function formatCountdown(ms: number): string {
@@ -23,9 +23,11 @@ export function ConfirmStep({
   lockToken,
   expiresAt,
   isAuthenticated,
+  currentUser,
   onBack,
   onExpired,
   onSuccess,
+  onGuestSuccess,
 }: {
   service: WizardService;
   master: WizardMaster;
@@ -35,11 +37,12 @@ export function ConfirmStep({
   lockToken: string;
   expiresAt: number;
   isAuthenticated: boolean;
+  currentUser: { name: string | null; phone: string } | null;
   onBack: () => void;
   onExpired: () => void;
   onSuccess: (bookingId: string) => void;
+  onGuestSuccess: (bookingId: string) => void;
 }) {
-  const { openAuthModal } = useAuthModal();
   const [comment, setComment] = useState("");
   const [remainingMs, setRemainingMs] = useState(() => expiresAt - Date.now());
   const [submitting, setSubmitting] = useState(false);
@@ -90,14 +93,6 @@ export function ConfirmStep({
     }
   }
 
-  function handleConfirmClick() {
-    if (!isAuthenticated) {
-      openAuthModal(() => submitBooking());
-      return;
-    }
-    submitBooking();
-  }
-
   const dateLabel = format(new Date(`${date}T00:00:00.000Z`), "d MMMM yyyy", { locale: uk });
 
   return (
@@ -121,30 +116,50 @@ export function ConfirmStep({
         />
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label htmlFor="comment" className="text-sm text-fg-muted">
-          Коментар (необов’язково)
-        </label>
-        <textarea
-          id="comment"
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          maxLength={500}
-          rows={3}
-          placeholder="Вперше у вас / алергія на гель / бажаю певний дизайн"
-          className="w-full resize-none rounded-xl border border-border-strong bg-surface px-4 py-3 text-sm text-fg outline-none transition-colors focus:border-accent"
-        />
-      </div>
-
       <div className="flex flex-col gap-3 rounded-2xl border border-accent-border bg-accent-soft p-4 text-sm text-fg">
         Ваш час заброньовано на {formatCountdown(remainingMs)}
       </div>
 
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {isAuthenticated ? (
+        <>
+          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6">
+            <span className="text-xs font-medium uppercase tracking-[0.15em] text-fg-subtle">Ваші контакти</span>
+            <Row label="Ім'я" value={currentUser?.name ?? "—"} />
+            <Row label="Телефон" value={currentUser?.phone ?? "—"} />
+          </div>
 
-      <ButtonAction onClick={handleConfirmClick} disabled={submitting} size="lg">
-        {submitting ? "Оформлюємо…" : "Підтвердити запис"}
-      </ButtonAction>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="comment" className="text-sm text-fg-muted">
+              Коментар (необов’язково)
+            </label>
+            <textarea
+              id="comment"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              maxLength={500}
+              rows={3}
+              placeholder="Вперше у вас / алергія на гель / бажаю певний дизайн"
+              className="w-full resize-none rounded-xl border border-border-strong bg-surface px-4 py-3 text-sm text-fg outline-none transition-colors focus:border-accent"
+            />
+          </div>
+
+          {error ? <p className="text-sm text-red-400">{error}</p> : null}
+
+          <ButtonAction onClick={submitBooking} disabled={submitting} size="lg">
+            {submitting ? "Оформлюємо…" : "Підтвердити запис"}
+          </ButtonAction>
+        </>
+      ) : (
+        <GuestBookingForm
+          serviceId={service.id}
+          masterId={master.id}
+          locationId={location.id}
+          date={date}
+          timeFrom={time}
+          lockToken={lockToken}
+          onSuccess={onGuestSuccess}
+        />
+      )}
     </div>
   );
 }

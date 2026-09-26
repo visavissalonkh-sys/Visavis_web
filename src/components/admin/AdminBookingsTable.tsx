@@ -84,7 +84,19 @@ export function AdminBookingsTable({
                 {b.date.split("-").reverse().join(".")} {b.timeFrom}
               </td>
               <td className="p-4 text-fg-muted">
-                {b.clientName ?? "Клієнт"} · {b.clientPhone}
+                <div className="flex items-center gap-2">
+                  <span>{b.clientName}</span>
+                  {b.isGuest && (
+                    <span className="rounded-full border border-accent-border bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent">
+                      Гість
+                    </span>
+                  )}
+                </div>
+                {b.clientPhone && (
+                  <a href={`tel:${b.clientPhone}`} className="text-xs text-accent hover:text-accent-hover">
+                    {b.clientPhone}
+                  </a>
+                )}
               </td>
               <td className="p-4 text-fg-muted">{b.masterName}</td>
               <td className="p-4 text-fg-muted">{b.serviceName}</td>
