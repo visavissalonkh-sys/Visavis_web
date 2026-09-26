@@ -40,11 +40,19 @@ function needsAuth(pathname: string): boolean {
 }
 
 function buildCsp(nonce: string): string {
+  // React Fast Refresh / webpack's dev-mode eval-based source maps need
+  // 'unsafe-eval' to run at all — production never hits this branch, so the
+  // real CSP stays exactly as strict as before for anything actually deployed.
+  const scriptSrc =
+    process.env.NODE_ENV === "development"
+      ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
+      : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`;
+
   return [
     "default-src 'self'",
     // 'strict-dynamic' lets scripts loaded by a nonce'd <script> (Next.js's
     // own chunks) load further scripts without each one needing the nonce.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    scriptSrc,
     // Inline styles stay unsafe-inline: Next.js/Tailwind don't emit inline
     // <script>-equivalent risk here — a CSS-injection ceiling is a much
     // smaller blast radius than script execution, and nonce'ing every
