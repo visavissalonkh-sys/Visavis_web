@@ -8,11 +8,13 @@ import { categories } from "@/lib/data/services";
 import { gsap } from "@/lib/gsap";
 
 const AUTO_ADVANCE_MS = 6000;
+const SWIPE_THRESHOLD_PX = 50;
 
 export function Testimonials() {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
+  const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -34,13 +36,31 @@ export function Testimonials() {
     return () => clearInterval(timer);
   }, [paused]);
 
+  function handleTouchStart(e: React.TouchEvent) {
+    setPaused(true);
+    touchStartX.current = e.touches[0].clientX;
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null) return;
+    const delta = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (delta < -SWIPE_THRESHOLD_PX) setIndex((i) => (i + 1) % reviews.length);
+    else if (delta > SWIPE_THRESHOLD_PX) setIndex((i) => (i - 1 + reviews.length) % reviews.length);
+    setPaused(false);
+  }
+
   const active = reviews[index];
   const category = categories.find((c) => c.slug === active.categorySlug);
 
   return (
-    <section ref={sectionRef} className="relative overflow-hidden border-t border-border py-24 sm:py-32">
+    <section
+      ref={sectionRef}
+      className="relative overflow-hidden py-24 sm:py-32"
+      style={{ background: "linear-gradient(to bottom, var(--color-cream), var(--color-cream-dark))" }}
+    >
       <Container className="testimonials-reveal flex flex-col items-center gap-14">
-        <SectionHeading title="Що кажуть клієнтки Visavis" align="center" />
+        <SectionHeading onCream title="Що кажуть клієнтки Visavis" align="center" />
 
         <div
           className="relative flex w-full max-w-2xl flex-col items-center gap-8 text-center"
@@ -48,30 +68,35 @@ export function Testimonials() {
           onMouseLeave={() => setPaused(false)}
           onFocus={() => setPaused(true)}
           onBlur={() => setPaused(false)}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
         >
           <span
             aria-hidden
-            className="font-display pointer-events-none absolute -top-16 select-none leading-none text-accent"
-            style={{ fontSize: "15vw", opacity: 0.05 }}
+            className="font-display pointer-events-none absolute -top-10 select-none text-[8rem] leading-none text-accent-on-cream sm:-top-16 sm:text-[15vw]"
+            style={{ opacity: 0.12 }}
           >
             “
           </span>
 
           <blockquote
             key={active.id}
-            className="animate-fade-up font-display relative max-w-xl text-2xl italic leading-relaxed text-fg sm:text-3xl"
+            className="animate-fade-up font-display relative max-w-xl text-[1.1rem] italic leading-relaxed text-on-cream sm:text-3xl"
           >
             {active.text}
           </blockquote>
 
-          <figcaption key={`${active.id}-caption`} className="animate-fade-up relative flex flex-col items-center gap-1">
-            <span className="text-sm text-fg">
-              {active.authorName} <span className="text-xs text-accent">{"★".repeat(active.rating)}</span>
+          <figcaption key={`${active.id}-caption`} className="animate-fade-up relative flex items-center gap-3">
+            <span className="h-6 w-px bg-accent-on-cream" aria-hidden />
+            <span className="flex flex-col items-start text-left">
+              <span className="text-sm text-on-cream">
+                {active.authorName} <span className="text-xs text-accent-on-cream">{"★".repeat(active.rating)}</span>
+              </span>
+              {category ? <span className="text-xs text-on-cream-muted">{category.name}</span> : null}
             </span>
-            {category ? <span className="text-xs text-fg-subtle">{category.name}</span> : null}
           </figcaption>
 
-          <div role="tablist" aria-label="Відгуки" className="relative flex gap-2 pt-4">
+          <div role="tablist" aria-label="Відгуки" className="relative flex pt-4">
             {reviews.map((review, i) => (
               <button
                 key={review.id}
@@ -80,10 +105,16 @@ export function Testimonials() {
                 aria-selected={i === index}
                 aria-label={`Відгук ${i + 1} з ${reviews.length}`}
                 onClick={() => setIndex(i)}
-                className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                  i === index ? "bg-accent" : "bg-border-strong hover:bg-fg-subtle"
-                }`}
-              />
+                className="flex h-11 w-11 items-center justify-center"
+              >
+                <span
+                  className="h-2.5 w-2.5 rounded-full transition-colors"
+                  style={{
+                    background:
+                      i === index ? "var(--color-accent-on-cream)" : "color-mix(in srgb, var(--color-on-cream) 20%, transparent)",
+                  }}
+                />
+              </button>
             ))}
           </div>
         </div>
