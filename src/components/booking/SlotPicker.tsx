@@ -232,7 +232,7 @@ export function SlotPicker({
               <p>Немає вільного часу цього дня.</p>
               {nextAvailable ? (
                 <p className="text-accent">
-                  ⚡ Найближчий вільний час: {format(new Date(nextAvailable.date), "d MMMM", { locale: uk })} о{" "}
+                  Найближчий вільний час: {format(new Date(nextAvailable.date), "d MMMM", { locale: uk })} о{" "}
                   {nextAvailable.time}
                 </p>
               ) : null}

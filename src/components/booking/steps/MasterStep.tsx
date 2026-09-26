@@ -49,7 +49,7 @@ export function MasterStep({
           >
             {master.isPopular ? (
               <span className="absolute right-4 top-4 rounded-full border border-accent-border bg-accent-soft px-3 py-1 text-xs text-accent">
-                🔥 Найпопулярніший
+                Найпопулярніший
               </span>
             ) : null}
 
