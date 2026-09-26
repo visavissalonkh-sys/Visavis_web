@@ -126,7 +126,7 @@ export default async function Home() {
         nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
-      <Hero locationsCount={locations.length} />
+      <Hero />
       <CategoriesStrip />
       <FeaturedMasters masters={featuredMasters} />
       <LocationsStrip locations={locations} />

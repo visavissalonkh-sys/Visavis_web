@@ -2,13 +2,7 @@ import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { categories } from "@/lib/data/services";
 
-export function Hero({ locationsCount }: { locationsCount: number }) {
-  const stats = [
-    { value: String(categories.length), label: "напрямків краси" },
-    { value: String(locationsCount), label: "філії у Харкові" },
-    { value: "1", label: "команда, єдиний стандарт якості" },
-  ];
-
+export function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div
@@ -48,17 +42,6 @@ export function Hero({ locationsCount }: { locationsCount: number }) {
               Переглянути послуги
             </Button>
           </div>
-        </div>
-
-        <div className="animate-fade-up grid max-w-2xl grid-cols-3 gap-8 border-t border-border pt-8 [animation-delay:150ms]">
-          {stats.map((stat) => (
-            <div key={stat.label} className="flex flex-col gap-1">
-              <span className="font-display text-3xl text-fg sm:text-4xl">
-                {stat.value}
-              </span>
-              <span className="text-xs leading-snug text-fg-subtle">{stat.label}</span>
-            </div>
-          ))}
         </div>
       </Container>
 
