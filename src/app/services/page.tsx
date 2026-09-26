@@ -36,7 +36,7 @@ export default function ServicesPage() {
                   href={`/services/${category.slug}`}
                   className="text-sm font-medium text-accent transition-colors hover:text-accent-hover"
                 >
-                  Детальніше →
+                  Усі послуги напрямку
                 </Link>
               </div>
 
