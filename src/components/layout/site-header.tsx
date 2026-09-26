@@ -3,6 +3,7 @@ import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { HeaderAuthAction } from "@/components/auth/HeaderAuthAction";
+import type { PublicLocation } from "@/lib/locations";
 
 const links = [
   { href: "/services", label: "Послуги" },
@@ -11,11 +12,11 @@ const links = [
   { href: "/reviews", label: "Відгуки" },
 ];
 
-export function SiteHeader() {
+export function SiteHeader({ locations }: { locations: PublicLocation[] }) {
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-border/60 bg-bg/80 backdrop-blur-md">
-      <Container className="flex h-20 items-center justify-between">
-        <Link href="/" className="font-display text-2xl tracking-[0.14em] text-fg">
+    <header className="site-header fixed inset-x-0 top-0 z-50 border-b border-border/60 bg-bg/95 backdrop-blur-md lg:bg-bg/80">
+      <Container className="flex h-full items-center justify-between">
+        <Link href="/" className="font-display text-lg tracking-[0.14em] text-fg lg:text-2xl">
           VISAVIS
         </Link>
 
@@ -36,7 +37,7 @@ export function SiteHeader() {
           <Button href="/booking">Записатися</Button>
         </div>
 
-        <MobileNav />
+        <MobileNav locations={locations} />
       </Container>
     </header>
   );

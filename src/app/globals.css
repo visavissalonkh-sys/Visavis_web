@@ -79,6 +79,26 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+/* Fixed header height + the spacer that reserves room for it under `main` —
+   kept in one place because they must always match. Both fold in the
+   iPhone notch/Dynamic Island inset: on a device with no notch, env()
+   resolves to 0, so this collapses to the plain 60px/80px height. */
+:root {
+  --header-h: 60px;
+}
+@media (min-width: 1024px) {
+  :root {
+    --header-h: 5rem;
+  }
+}
+.site-header {
+  height: calc(var(--header-h) + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.site-header-spacer {
+  padding-top: calc(var(--header-h) + env(safe-area-inset-top, 0px));
+}
+
 ::selection {
   background: var(--color-accent);
   color: var(--color-accent-foreground);

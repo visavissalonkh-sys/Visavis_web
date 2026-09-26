@@ -66,8 +66,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           />
         ))}
         <AuthModalProvider>
-          <SiteHeader />
-          <main className="flex-1 pt-20">{children}</main>
+          <SiteHeader locations={footerLocations} />
+          <main className="site-header-spacer flex-1">{children}</main>
           <SiteFooter locations={footerLocations} />
         </AuthModalProvider>
       </body>
