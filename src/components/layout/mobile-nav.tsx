@@ -17,7 +17,7 @@ const links = [
 
 const SWIPE_CLOSE_THRESHOLD_PX = 80;
 
-export function MobileNav({ locations }: { locations: PublicLocation[] }) {
+export function MobileNav({ locations, hideCta = false }: { locations: PublicLocation[]; hideCta?: boolean }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -141,9 +141,11 @@ export function MobileNav({ locations }: { locations: PublicLocation[] }) {
 
               <div className="mobile-nav-item flex flex-col items-center gap-4 pt-6">
                 <HeaderAuthAction className="text-base" />
-                <Button href="/booking" size="lg" onClick={() => setOpen(false)} className="w-full">
-                  Записатися
-                </Button>
+                {hideCta ? null : (
+                  <Button href="/booking" size="lg" onClick={() => setOpen(false)} className="w-full">
+                    Записатися
+                  </Button>
+                )}
 
                 <div className="flex flex-col items-center gap-1 pt-2 text-sm text-fg-muted">
                   {locations.map((location) => (

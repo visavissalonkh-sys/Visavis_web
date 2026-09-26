@@ -159,6 +159,10 @@ Two more conversion-first rules, site-wide:
 - **The header's "Записатися" button is visible on every section, at all times** — not themed to Night/Morning, not hidden on scroll. The header keeps its own fixed, theme-independent background (as it already does today) specifically so this button's contrast never depends on which section happens to be behind it.
 - **Every place a specific master is named gets its own direct booking link to that master** (`?master={slug}`), not a generic "book now" that dumps the visitor back at step one of the wizard.
 
+**Header/Footer scope (resolved, round-1 follow-up):** both are shared across the whole site via root layout, so the redesign changes them globally — but with two behavioral carve-outs, decided via `usePathname()` in the components themselves rather than a route-group split, since only *behavior* differs, not access/security:
+- **Header:** the "Записатися" CTA is hidden on `/booking/*` only (a second CTA mid-booking is noise, not help). `/account`, `/master`, `/admin` keep the button — only its visual style changes with the rest of the redesign.
+- **Footer:** genuinely two variants of one component. The full §6.9 treatment (wordmark, etc.) renders only on the public pages (`/`, `/services*`, `/masters*`, `/locations*`, `/reviews*`); everywhere else (`/booking`, `/account`, `/master`, `/admin`) gets a one-line compact footer — small wordmark, both phone numbers, copyright. Verified live (with minted test sessions for admin/master/client roles) that the compact footer renders correctly on all four non-public areas and that `/booking`'s existing sticky mobile CTA bar (built earlier this session) has nothing to conflict with, since the compact footer is a normal one-line block, not another fixed element.
+
 ---
 
 ## 6. Section-by-section
