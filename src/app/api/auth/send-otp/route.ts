@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
   const { phone } = parsed.data;
 
   const [ipLimit, phoneLimit] = await Promise.all([
-    rateLimit(`otp:send:ip:${ip}`, 3, 600),
-    rateLimit(`otp:send:phone:${phone}`, 3, 600),
+    rateLimit(`otp:send:ip:${ip}`, 15, 600),
+    rateLimit(`otp:send:phone:${phone}`, 15, 600),
   ]);
 
   if (!ipLimit.success || !phoneLimit.success) {
