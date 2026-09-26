@@ -111,3 +111,37 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Services hover-expand panels — pure CSS, no JS for the interaction itself.
+   :has() on the shared parent detects "some panel is active" and shrinks
+   every panel to a common baseline; the active one's own :hover/:focus rule
+   (higher specificity via the extra pseudo-class) then grows it back up. */
+.services-panel {
+  flex: 1 1 0%;
+  transition: flex-grow 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.services-panels:has(.services-panel:hover, .services-panel:focus) .services-panel {
+  flex-grow: 0.75;
+}
+.services-panels:has(.services-panel:hover, .services-panel:focus) .services-panel:hover,
+.services-panels:has(.services-panel:hover, .services-panel:focus) .services-panel:focus {
+  flex-grow: 3.3;
+}
+.services-panel-label {
+  transition: opacity 300ms ease, transform 400ms ease;
+}
+.services-panel-detail {
+  opacity: 0;
+  transform: translateX(16px);
+  transition: opacity 300ms ease 100ms, transform 400ms ease 100ms;
+}
+.services-panel:hover .services-panel-label,
+.services-panel:focus .services-panel-label {
+  opacity: 0;
+  transform: translateX(-12px);
+}
+.services-panel:hover .services-panel-detail,
+.services-panel:focus .services-panel-detail {
+  opacity: 1;
+  transform: translateX(0);
+}
