@@ -46,27 +46,23 @@ export default async function ReviewsPage() {
       />
 
       {reviews.length ? (
-        <div className="grid gap-6 sm:grid-cols-2">
+        <div className="grid gap-10 sm:grid-cols-2">
           {reviews.map((review) => (
-            <figure
-              key={review.id}
-              className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-7"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex text-accent">
-                  {Array.from({ length: review.rating }).map((_, i) => (
-                    <span key={i}>★</span>
-                  ))}
-                </div>
+            <figure key={review.id} className="flex flex-col gap-3">
+              <span aria-hidden className="font-display text-6xl leading-none text-accent/40">
+                “
+              </span>
+              <blockquote className="flex-1 text-base leading-relaxed text-fg-muted">
+                {review.text}
+              </blockquote>
+              <figcaption className="flex flex-col gap-1 border-t border-border pt-4">
+                <span className="flex items-center gap-2 text-sm text-fg">
+                  {review.authorName}
+                  <span className="text-xs text-accent">{"★".repeat(review.rating)}</span>
+                </span>
                 {review.masterName ? (
-                  <span className="rounded-full border border-border-strong px-3 py-1 text-xs text-fg-subtle">
-                    {review.masterName}
-                  </span>
+                  <span className="text-xs text-fg-subtle">{review.masterName}</span>
                 ) : null}
-              </div>
-              <blockquote className="text-fg-muted">“{review.text}”</blockquote>
-              <figcaption className="text-sm text-fg">
-                {review.authorName} <span className="text-fg-subtle">· {review.locationName}</span>
               </figcaption>
             </figure>
           ))}
