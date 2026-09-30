@@ -33,101 +33,8 @@ let uid = 0;
 
 const RM = () => STATIC || matchMedia("(prefers-reduced-motion: reduce)").matches;
 const HOVER = () => matchMedia("(hover: hover) and (pointer: fine)").matches;
+const once = (el: VvElement) => (el.__vvInit ? false : (el.__vvInit = true));
 const clamp = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
-
-/**
- * Per-run registry.
- *
- * The prototype latched a permanent `__vvInit` flag on each element so it
- * could never double-initialise. That is fatal under React Strict Mode,
- * which mounts, tears down, and mounts again: the first mount sets the
- * latch and the teardown removes its listeners, then the second mount sees
- * the latch and does nothing — leaving the markup decorated but completely
- * inert. That is exactly why the manifesto words stopped reacting to
- * scroll.
- *
- * So the latch now belongs to the run, not to the element, and teardown
- * fully reverses the run: listeners off, rAF cancelled, injected nodes
- * removed, mutated inline styles restored, latches cleared. Initialising
- * again afterwards produces the same result as the first time.
- */
-class Reg {
-  private offs: (() => void)[] = [];
-  private nodes: Node[] = [];
-  private claimed: VvElement[] = [];
-  private snaps: [HTMLElement, string, string][] = [];
-
-  own(fn: () => void) {
-    this.offs.push(fn);
-  }
-
-  node<T extends Node>(n: T): T {
-    this.nodes.push(n);
-    return n;
-  }
-
-  claim(el: VvElement) {
-    if (el.__vvInit) return false;
-    el.__vvInit = true;
-    this.claimed.push(el);
-    return true;
-  }
-
-  /** Record an inline style value so teardown can put it back. */
-  snap(el: HTMLElement, ...props: string[]) {
-    props.forEach((p) => this.snaps.push([el, p, el.style.getPropertyValue(p)]));
-  }
-
-  destroy() {
-    this.offs.forEach((f) => {
-      try {
-        f();
-      } catch {
-        /* a half-built effect must not block the rest of teardown */
-      }
-    });
-    this.nodes.forEach((n) => n.parentNode?.removeChild(n));
-    this.snaps.forEach(([el, p, v]) => {
-      if (v) el.style.setProperty(p, v);
-      else el.style.removeProperty(p);
-    });
-    this.claimed.forEach((el) => {
-      delete el.__vvInit;
-      delete el.__vvPlay;
-      delete el.__vvReset;
-      delete el.__vvFill;
-      delete el.__vvClear;
-    });
-    this.offs = [];
-    this.nodes = [];
-    this.snaps = [];
-    this.claimed = [];
-  }
-}
-
-/** The run currently being built. Set for the duration of `initAll` only. */
-let RUN: Reg = new Reg();
-
-const claim = (el: VvElement) => RUN.claim(el);
-const node = <T extends Node>(n: T): T => RUN.node(n);
-const snap = (el: HTMLElement, ...props: string[]) => RUN.snap(el, ...props);
-
-/**
- * addEventListener that registers its own removal with the current run.
- * Generic over the event so handlers keep their real types (PointerEvent,
- * WheelEvent…) instead of collapsing to Event.
- */
-function listen<E extends Event = Event>(
-  target: EventTarget,
-  type: string,
-  handler: (e: E) => void,
-  opts?: AddEventListenerOptions | boolean,
-) {
-  const h = handler as EventListener;
-  target.addEventListener(type, h, opts);
-  const off = typeof opts === "object" ? { capture: opts.capture } : opts;
-  RUN.own(() => target.removeEventListener(type, h, off));
-}
 
 /**
  * rAF driver that only runs while the host is on screen and the tab is
@@ -198,15 +105,14 @@ function band() {
 
 /* Button: lipstick fills bottom-up on hover, exits upward */
 function lipBtn(el: VvElement) {
-  if (!claim(el)) return;
-  snap(el, "position", "overflow", "isolation", "transition", "color", "border-color");
+  if (!once(el)) return;
   if (getComputedStyle(el).position === "static") el.style.position = "relative";
   el.style.overflow = "hidden";
   el.style.isolation = "isolate";
   const f = document.createElement("span");
   f.setAttribute("aria-hidden", "true");
   f.style.cssText = `position:absolute;left:-10%;right:-10%;top:-35%;bottom:-35%;z-index:-1;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(0,0,0,.12)),${LIP};filter:url(#vv-wax);transform:translateY(100%)`;
-  el.appendChild(node(f));
+  el.appendChild(f);
   const c0 = el.style.color;
   const b0 = el.style.borderColor;
   el.style.transition = "color .45s cubic-bezier(0.16,1,0.3,1), border-color .45s";
@@ -231,11 +137,11 @@ function lipBtn(el: VvElement) {
     el.style.color = c0;
     el.style.borderColor = b0;
   };
-  listen(el, "pointerenter", enter);
-  listen(el, "pointerleave", leave);
-  listen(el, "focus", enter);
-  listen(el, "blur", leave);
-  listen(el, "pointerdown", (e: PointerEvent) => {
+  el.addEventListener("pointerenter", enter);
+  el.addEventListener("pointerleave", leave);
+  el.addEventListener("focus", enter);
+  el.addEventListener("blur", leave);
+  el.addEventListener("pointerdown", (e) => {
     if (e.pointerType !== "mouse") {
       enter();
       setTimeout(leave, 700);
@@ -245,7 +151,7 @@ function lipBtn(el: VvElement) {
 
 /* Eyeliner stroke with a winged flick, drawn like a liner */
 function liner(el: VvElement) {
-  if (!claim(el)) return;
+  if (!once(el)) return;
   el.style.position = "relative";
   el.style.display = "inline-block";
   const w = el.offsetWidth + 16;
@@ -259,7 +165,7 @@ function liner(el: VvElement) {
   s.setAttribute("viewBox", `0 0 ${w} 24`);
   s.style.cssText = "position:absolute;left:-4px;top:calc(100% - .16em);overflow:visible;pointer-events:none";
   s.innerHTML = `<defs><mask id="${id}" maskUnits="userSpaceOnUse" x="-12" y="-12" width="${w + 24}" height="48"><path d="${stroke}" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round"/></mask></defs><path d="${fill}" fill="currentColor" mask="url(#${id})"/>`;
-  el.appendChild(node(s));
+  el.appendChild(s);
   const mp = s.querySelector("mask path") as SVGPathElement;
   const L = mp.getTotalLength();
   mp.style.strokeDasharray = String(L);
@@ -278,9 +184,8 @@ function liner(el: VvElement) {
 
 /* Manifesto words: opacity scrubbed by scroll; liners fire as they pass mid-screen */
 function scrollWords(el: VvElement): Cleanup {
-  if (!claim(el)) return;
+  if (!once(el)) return;
   const words = [...el.querySelectorAll<HTMLElement>("[data-vv-word]")];
-  words.forEach((w) => snap(w, "opacity"));
   const liners = [...el.querySelectorAll<VvElement>('[data-vv="liner"]')].map((l) => ({ el: l, done: false }));
   let raf = 0;
   const upd = () => {
@@ -301,8 +206,8 @@ function scrollWords(el: VvElement): Cleanup {
   const on = () => {
     if (!raf) raf = requestAnimationFrame(upd);
   };
-  listen(document, "scroll", on, { capture: true, passive: true });
-  listen(window, "resize", on);
+  document.addEventListener("scroll", on, { capture: true, passive: true });
+  addEventListener("resize", on);
   upd();
   el.__vvReset = () => {
     liners.forEach((o) => {
@@ -320,7 +225,7 @@ function scrollWords(el: VvElement): Cleanup {
 
 /* Nail polish: name fills with glossy lacquer left→right; liquid drop follows cursor */
 function polish(sec: VvElement): Cleanup {
-  if (!claim(sec)) return;
+  if (!once(sec)) return;
   const rows = [...sec.querySelectorAll<VvElement>("[data-vv-row]")];
   rows.forEach((r) => {
     const n = r.querySelector<HTMLElement>("[data-vv-name]");
@@ -332,7 +237,7 @@ function polish(sec: VvElement): Cleanup {
     o.textContent = n.textContent;
     o.style.cssText =
       "position:absolute;left:0;top:0;white-space:nowrap;pointer-events:none;color:transparent;background:linear-gradient(180deg,#b3263f 0%,#f2a9b6 15%,#b8304b 26%,#9E1B32 55%,#650b1f 100%);-webkit-background-clip:text;background-clip:text;clip-path:inset(-10% 100% -10% 0)";
-    n.appendChild(node(o));
+    n.appendChild(o);
     let a: Animation | undefined;
     r.__vvFill = () => {
       a?.cancel();
@@ -351,8 +256,8 @@ function polish(sec: VvElement): Cleanup {
       });
     };
     if (HOVER()) {
-      listen(r, "pointerenter", r.__vvFill);
-      listen(r, "pointerleave", r.__vvClear);
+      r.addEventListener("pointerenter", r.__vvFill);
+      r.addEventListener("pointerleave", r.__vvClear);
     }
   });
   if (HOVER() && !RM()) return drop(sec, rows);
@@ -371,7 +276,7 @@ function drop(sec: HTMLElement, rows: HTMLElement[]): Cleanup {
 <mask id="${id}m" maskUnits="userSpaceOnUse" x="-4000" y="-4000" width="10000" height="10000"><g filter="url(#${id}g)"><circle r="0" fill="#fff"/><circle r="0" fill="#fff"/><circle r="0" fill="#fff"/></g></mask></defs>
 <g mask="url(#${id}m)"><g data-c="1"><rect x="-150" y="-188" width="300" height="376" fill="url(#${id}lg)"/><rect x="-150" y="-188" width="300" height="376" fill="url(#${id}rg)"/>
 <text x="0" y="-6" text-anchor="middle" font-family="var(--font-jetbrains-mono), monospace" font-size="9" letter-spacing="1.2" fill="#3a2019">ФОТО НАПРЯМУ · 4:5</text><text data-cap="1" x="0" y="10" text-anchor="middle" font-family="var(--font-jetbrains-mono), monospace" font-size="9" fill="#3a2019"></text></g></g>`;
-  sec.appendChild(node(s));
+  sec.appendChild(s);
   const cs = [...s.querySelectorAll("circle")];
   const g = s.querySelector("[data-c]") as SVGGElement;
   const cap = s.querySelector("[data-cap]") as SVGTextElement;
@@ -425,16 +330,16 @@ function drop(sec: HTMLElement, rows: HTMLElement[]): Cleanup {
     tgt = 0;
     start();
   };
-  listen(list, "pointerenter", enter);
-  listen(list, "pointermove", pos);
-  listen(list, "pointerleave", leave);
+  list.addEventListener("pointerenter", enter);
+  list.addEventListener("pointermove", pos);
+  list.addEventListener("pointerleave", leave);
   const rowEnter = rows.map((r) => {
     const fn = () => {
       cap.textContent = r.dataset.caption || "";
       const t = (r.dataset.tone || "").split(",");
       if (t.length === 3) stops.forEach((st, i) => st.setAttribute("stop-color", t[i]));
     };
-    listen(r, "pointerenter", fn);
+    r.addEventListener("pointerenter", fn);
     return { r, fn };
   });
   return () => {
@@ -449,7 +354,7 @@ function drop(sec: HTMLElement, rows: HTMLElement[]): Cleanup {
 
 /* Powder: particles burst, then settle into the step number */
 function powder(host: VvElement): Cleanup {
-  if (!claim(host)) return;
+  if (!once(host)) return;
   if (getComputedStyle(host).position === "static") host.style.position = "relative";
   const pts = [...host.querySelectorAll<HTMLElement>("[data-vv-pt]")];
   const fades = [...host.querySelectorAll<HTMLElement>("[data-vv-fade]")];
@@ -458,8 +363,7 @@ function powder(host: VvElement): Cleanup {
   const cv = document.createElement("canvas");
   cv.setAttribute("aria-hidden", "true");
   cv.style.cssText = "position:absolute;left:-60px;top:-60px;pointer-events:none";
-  host.appendChild(node(cv));
-  all.forEach((e) => snap(e, "opacity"));
+  host.appendChild(cv);
   all.forEach((e) => (e.style.opacity = "0"));
   let stop: Cleanup;
   const COLS = ["217,163,140", "233,194,176", "196,138,116"];
@@ -560,9 +464,8 @@ function powder(host: VvElement): Cleanup {
 
 /* Stamp pressed onto paper */
 function press(el: VvElement): Cleanup {
-  if (!claim(el)) return;
+  if (!once(el)) return;
   if (RM()) return;
-  snap(el, "opacity");
   el.style.opacity = "0";
   el.__vvPlay = () => {
     el.getAnimations().forEach((a) => a.cancel());
@@ -607,7 +510,7 @@ export function strokeWipe(host: HTMLElement, swap: () => void) {
 
 /* Hero line: lipstick band paints across; text shows through, then red melts away */
 function strokeLine(el: VvElement) {
-  if (!claim(el)) return;
+  if (!once(el)) return;
   const txt = el.querySelector<HTMLElement>("[data-vv-text]") || el;
   if (getComputedStyle(el).position === "static") el.style.position = "relative";
   if (RM()) {
@@ -623,10 +526,9 @@ function strokeLine(el: VvElement) {
     mixBlendMode: el.dataset.blend || "screen",
     zIndex: "1",
   });
-  el.appendChild(node(b));
+  el.appendChild(b);
   const H = "inset(-25% 100% -25% -4%)";
   const S = "inset(-25% -4% -25% -4%)";
-  snap(txt, "clip-path");
   txt.style.clipPath = H;
   el.__vvPlay = (delay = 0) => {
     [b, txt].forEach((x) => x.getAnimations().forEach((a) => a.cancel()));
@@ -654,10 +556,9 @@ function strokeLine(el: VvElement) {
 
 /* Handwritten word: revealed along a slanted front, like a pen moving */
 function write(el: VvElement): Cleanup {
-  if (!claim(el)) return;
+  if (!once(el)) return;
   if (RM()) return;
   const f = (p: number) => `polygon(-8% -40%, ${p}% -40%, ${p - 12}% 140%, -8% 140%)`;
-  snap(el, "clip-path");
   el.style.clipPath = f(0);
   el.__vvPlay = (delay = 0) => {
     el.getAnimations().forEach((a) => a.cancel());
@@ -673,8 +574,7 @@ function write(el: VvElement): Cleanup {
 }
 
 function hairline(el: VvElement): Cleanup {
-  if (!claim(el) || RM()) return;
-  snap(el, "transform", "transform-origin");
+  if (!once(el) || RM()) return;
   el.style.transformOrigin = "0 50%";
   el.style.transform = "scaleX(0)";
   return onVisible(
@@ -691,14 +591,14 @@ function hairline(el: VvElement): Cleanup {
 
 /* Outline section number fills with colour bottom-up */
 function numFill(el: VvElement): Cleanup {
-  if (!claim(el)) return;
+  if (!once(el)) return;
   el.style.position = "relative";
   el.style.display = "inline-block";
   const o = document.createElement("span");
   o.setAttribute("aria-hidden", "true");
   o.textContent = el.textContent;
   o.style.cssText = `position:absolute;left:0;top:0;color:${el.dataset.fill || LIP};-webkit-text-stroke:0;clip-path:inset(100% 0 0 0)`;
-  el.appendChild(node(o));
+  el.appendChild(o);
   const go = () =>
     o.animate([{ clipPath: "inset(100% 0 0 0)" }, { clipPath: "inset(0% 0 0 0)" }], {
       duration: RM() ? 1 : 1400,
@@ -710,16 +610,16 @@ function numFill(el: VvElement): Cleanup {
 
 /* Footer wordmark letters tint with lipstick on hover */
 function fillChar(el: VvElement) {
-  if (!claim(el)) return;
+  if (!once(el)) return;
   el.style.position = "relative";
   el.style.display = "inline-block";
   const o = document.createElement("span");
   o.setAttribute("aria-hidden", "true");
   o.textContent = el.textContent;
   o.style.cssText = `position:absolute;left:0;top:0;color:${LIP};clip-path:inset(100% 0 0 0);pointer-events:none`;
-  el.appendChild(node(o));
+  el.appendChild(o);
   let a: Animation | undefined;
-  listen(el, "pointerenter", () => {
+  el.addEventListener("pointerenter", () => {
     a?.cancel();
     a = o.animate([{ clipPath: "inset(100% 0 0 0)" }, { clipPath: "inset(0% 0 0 0)" }], {
       duration: 600,
@@ -727,7 +627,7 @@ function fillChar(el: VvElement) {
       fill: "forwards",
     });
   });
-  listen(el, "pointerleave", () => {
+  el.addEventListener("pointerleave", () => {
     a?.cancel();
     a = o.animate([{ clipPath: "inset(0% 0 0 0)" }, { clipPath: "inset(0% 0 100% 0)" }], {
       duration: 900,
@@ -740,7 +640,7 @@ function fillChar(el: VvElement) {
 
 /* Light sweep over a mirror */
 function sheen(el: VvElement) {
-  if (!claim(el) || !HOVER()) return;
+  if (!once(el) || !HOVER()) return;
   const w = document.createElement("span");
   w.setAttribute("aria-hidden", "true");
   w.style.cssText = "position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2";
@@ -748,8 +648,8 @@ function sheen(el: VvElement) {
   b.style.cssText =
     "position:absolute;top:-20%;bottom:-20%;left:0;width:60%;background:linear-gradient(100deg,rgba(255,255,255,0) 0%,rgba(255,250,242,.38) 48%,rgba(255,255,255,0) 100%);transform:translateX(-120%) skewX(-12deg)";
   w.appendChild(b);
-  el.appendChild(node(w));
-  listen(el, "pointerenter", () =>
+  el.appendChild(w);
+  el.addEventListener("pointerenter", () =>
     b.animate(
       [
         { transform: "translateX(-120%) skewX(-12deg)" },
@@ -762,12 +662,12 @@ function sheen(el: VvElement) {
 
 /* Fogged mirror: cursor wipes condensation, glass fogs up again in ~6s */
 function fog(host: VvElement): Cleanup {
-  if (!claim(host)) return;
+  if (!once(host)) return;
   if (getComputedStyle(host).position === "static") host.style.position = "relative";
   const cv = document.createElement("canvas");
   cv.setAttribute("aria-hidden", "true");
   cv.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2";
-  host.appendChild(node(cv));
+  host.appendChild(cv);
   const mk = document.createElement("canvas");
   let W = 1;
   let H = 1;
@@ -887,8 +787,8 @@ function fog(host: VvElement): Cleanup {
     stroke(e.clientX - r.left, e.clientY - r.top);
   };
   const onLeave = () => (last = null);
-  listen(host, "pointermove", onMove);
-  listen(host, "pointerleave", onLeave);
+  host.addEventListener("pointermove", onMove);
+  host.addEventListener("pointerleave", onLeave);
 
   let first = true;
   const io2 = new IntersectionObserver(
@@ -901,7 +801,7 @@ function fog(host: VvElement): Cleanup {
     { threshold: 0.5 },
   );
   io2.observe(host);
-  listen(window, "resize", size);
+  addEventListener("resize", size);
   host.__vvReset = () => {
     mctx.globalCompositeOperation = "source-over";
     mctx.fillStyle = "#000";
@@ -920,7 +820,7 @@ function fog(host: VvElement): Cleanup {
 
 /* Horizontal gallery: cards skew with scroll velocity */
 function skew(el: VvElement) {
-  if (!claim(el) || RM()) return;
+  if (!once(el) || RM()) return;
   const cards = [...el.children] as HTMLElement[];
   let lastX = el.scrollLeft;
   let v = 0;
@@ -930,7 +830,7 @@ function skew(el: VvElement) {
     cards.forEach((c) => (c.style.transform = `skewX(${(-v).toFixed(2)}deg)`));
     raf = Math.abs(v) > 0.02 && !document.hidden ? requestAnimationFrame(loop) : 0;
   };
-  listen(el, 
+  el.addEventListener(
     "scroll",
     () => {
       const d = el.scrollLeft - lastX;
@@ -940,9 +840,9 @@ function skew(el: VvElement) {
     },
     { passive: true },
   );
-  listen(el, 
+  el.addEventListener(
     "wheel",
-    (e: WheelEvent) => {
+    (e) => {
       if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
         const max = el.scrollWidth - el.clientWidth;
         if ((e.deltaY > 0 && el.scrollLeft < max - 1) || (e.deltaY < 0 && el.scrollLeft > 0)) {
@@ -982,7 +882,7 @@ function pageScroll(root: ParentNode): Cleanup {
   const on = () => {
     if (!raf) raf = requestAnimationFrame(upd);
   };
-  listen(document, "scroll", on, { capture: true, passive: true });
+  document.addEventListener("scroll", on, { capture: true, passive: true });
   upd();
   return () => {
     document.removeEventListener("scroll", on, { capture: true });
@@ -1023,7 +923,7 @@ function preloader(el: HTMLElement | null, mode: string, done: () => void) {
     hide();
     done();
   };
-  listen(el, "pointerdown", finish, { once: true });
+  el.addEventListener("pointerdown", finish, { once: true });
   timers.push(setTimeout(finish, 3200));
   word.animate([{ clipPath: f(0) }, { clipPath: f(125) }], {
     duration: 1150,
@@ -1057,11 +957,10 @@ function preloader(el: HTMLElement | null, mode: string, done: () => void) {
 export function initAll(root: ParentNode = document, opts: { static?: boolean; preloader?: string } = {}) {
   STATIC = !!document.hidden || !!opts.static;
   ensureDefs();
-  const reg = new Reg();
-  RUN = reg;
   const q = <T extends Element>(s: string) => [...root.querySelectorAll<T>(s)];
+  const offs: (() => void)[] = [];
   const add = (f: Cleanup) => {
-    if (typeof f === "function") reg.own(f);
+    if (typeof f === "function") offs.push(f);
   };
   q<VvElement>('[data-vv="lipbtn"]').forEach(lipBtn);
   q<VvElement>('[data-vv="liner"]').forEach(liner);
@@ -1092,18 +991,5 @@ export function initAll(root: ParentNode = document, opts: { static?: boolean; p
     heroWrite.forEach((e) => e.__vvPlay?.(lines.length * 280 + 700));
   };
   preloader(root.querySelector<HTMLElement>("[data-vv-pre]"), opts.preloader || "session", reveal);
-
-  // Development-only handle. A headless/background tab suspends rAF and
-  // never fires IntersectionObserver, so the only way to actually watch
-  // these effects run under automation is to shim those two and
-  // re-initialise. Stripped from production bundles by the NODE_ENV check.
-  if (process.env.NODE_ENV !== "production") {
-    (window as unknown as { __vv?: unknown }).__vv = {
-      initAll,
-      reveal,
-      destroy: () => reg.destroy(),
-    };
-  }
-
-  return () => reg.destroy();
+  return () => offs.forEach((f) => f());
 }
