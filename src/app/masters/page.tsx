@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { prisma } from "@/lib/prisma";
+import { safeQuery } from "@/lib/safe-query";
 import { categories } from "@/lib/data/services";
 
 // Not SSG — see /masters/[slug]/page.tsx for why (build-time DB dependency
@@ -21,15 +22,20 @@ function initials(name: string) {
 }
 
 export default async function MastersPage() {
-  const masters = await prisma.master.findMany({
-    where: { isActive: true },
-    include: {
-      specialties: { include: { service: true } },
-      masterLocations: { include: { location: true }, distinct: ["locationId"] },
-      _count: { select: { reviews: { where: { isPublished: true } } } },
-    },
-    orderBy: { name: "asc" },
-  });
+  const masters = await safeQuery(
+    "mastersPage:list",
+    () =>
+      prisma.master.findMany({
+        where: { isActive: true },
+        include: {
+          specialties: { include: { service: true } },
+          masterLocations: { include: { location: true }, distinct: ["locationId"] },
+          _count: { select: { reviews: { where: { isPublished: true } } } },
+        },
+        orderBy: { name: "asc" },
+      }),
+    [],
+  );
 
   return (
     <Container className="flex flex-col gap-14 py-20">

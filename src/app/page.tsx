@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { categories } from "@/lib/data/services";
 import { getPublicLocations } from "@/lib/locations";
+import { safeQuery } from "@/lib/safe-query";
 import { Hero } from "@/components/sections/hero";
 import { CategoriesStrip } from "@/components/sections/categories-strip";
 import { FeaturedMasters } from "@/components/sections/featured-masters";
@@ -95,17 +96,26 @@ export default async function Home() {
   };
 
   const locations = await getPublicLocations();
-  const activeMasterCount = await prisma.master.count({ where: { isActive: true } });
+  const activeMasterCount = await safeQuery(
+    "home:activeMasterCount",
+    () => prisma.master.count({ where: { isActive: true } }),
+    0,
+  );
 
-  const masters = await prisma.master.findMany({
-    where: { isActive: true },
-    include: {
-      specialties: { include: { service: true } },
-      _count: { select: { reviews: { where: { isPublished: true } } } },
-    },
-    orderBy: { ratingCached: "desc" },
-    take: 4,
-  });
+  const masters = await safeQuery(
+    "home:featuredMasters",
+    () =>
+      prisma.master.findMany({
+        where: { isActive: true },
+        include: {
+          specialties: { include: { service: true } },
+          _count: { select: { reviews: { where: { isPublished: true } } } },
+        },
+        orderBy: { ratingCached: "desc" },
+        take: 4,
+      }),
+    [],
+  );
 
   const featuredMasters = masters.map((master) => {
     const specialtySlugs = [...new Set(master.specialties.map((s) => s.service.category))];

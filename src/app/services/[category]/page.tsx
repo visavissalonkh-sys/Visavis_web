@@ -7,6 +7,7 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
 import { getCategory, getServicesByCategory } from "@/lib/data/services";
 import { prisma } from "@/lib/prisma";
+import { safeQuery } from "@/lib/safe-query";
 
 // Not SSG: the page body queries Prisma for categoryMasters, which needs the
 // DB reachable at build time — Railway's build step doesn't guarantee that
@@ -44,10 +45,15 @@ export default async function CategoryPage({
   if (!category) notFound();
 
   const categoryServices = getServicesByCategory(slug);
-  const categoryMasters = await prisma.master.findMany({
-    where: { isActive: true, specialties: { some: { service: { category: slug } } } },
-    orderBy: { name: "asc" },
-  });
+  const categoryMasters = await safeQuery(
+    `servicesCategory:${slug}:masters`,
+    () =>
+      prisma.master.findMany({
+        where: { isActive: true, specialties: { some: { service: { category: slug } } } },
+        orderBy: { name: "asc" },
+      }),
+    [],
+  );
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   const jsonLd = {

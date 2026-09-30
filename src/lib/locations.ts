@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { safeQuery } from "@/lib/safe-query";
 
 type DayHours = { isOpen: boolean; from?: string; to?: string };
 type PerDayWorkingHours = Record<"mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun", DayHours>;
@@ -86,6 +87,10 @@ export function toPublicLocation(location: {
 }
 
 export async function getPublicLocations(): Promise<PublicLocation[]> {
-  const locations = await prisma.location.findMany({ where: { isActive: true }, orderBy: { name: "asc" } });
+  const locations = await safeQuery(
+    "getPublicLocations",
+    () => prisma.location.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
+    [],
+  );
   return locations.map(toPublicLocation);
 }

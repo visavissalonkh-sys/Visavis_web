@@ -3,6 +3,7 @@ import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { getPublicLocations } from "@/lib/locations";
 import { prisma } from "@/lib/prisma";
+import { safeQuery } from "@/lib/safe-query";
 
 // Not SSG — see /masters/[slug]/page.tsx for why.
 export const dynamic = "force-dynamic";
@@ -15,10 +16,15 @@ export const metadata: Metadata = {
 
 export default async function LocationsPage() {
   const locations = await getPublicLocations();
-  const masterLocations = await prisma.masterLocation.findMany({
-    distinct: ["masterId", "locationId"],
-    include: { master: true, location: true },
-  });
+  const masterLocations = await safeQuery(
+    "locationsPage:masterLocations",
+    () =>
+      prisma.masterLocation.findMany({
+        distinct: ["masterId", "locationId"],
+        include: { master: true, location: true },
+      }),
+    [],
+  );
 
   const teamBySlug = new Map<string, { slug: string; name: string }[]>();
   for (const ml of masterLocations) {

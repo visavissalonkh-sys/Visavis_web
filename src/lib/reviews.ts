@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { safeQuery } from "@/lib/safe-query";
 import { notifyAdmins } from "@/lib/alerts";
 import { bookingContactName } from "@/lib/booking";
 
@@ -67,19 +68,27 @@ export async function createReview(
 }
 
 export async function getAllPublishedReviews() {
-  const [reviews, aggregate] = await Promise.all([
-    prisma.review.findMany({
-      where: { isPublished: true },
-      include: { client: true, master: true, location: true },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    }),
-    prisma.review.aggregate({
-      where: { isPublished: true },
-      _avg: { rating: true },
-      _count: true,
-    }),
-  ]);
+  const result = await safeQuery(
+    "getAllPublishedReviews",
+    () =>
+      Promise.all([
+        prisma.review.findMany({
+          where: { isPublished: true },
+          include: { client: true, master: true, location: true },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+        }),
+        prisma.review.aggregate({
+          where: { isPublished: true },
+          _avg: { rating: true },
+          _count: true,
+        }),
+      ]),
+    null,
+  );
+
+  if (!result) return { reviews: [], averageRating: 0, reviewCount: 0 };
+  const [reviews, aggregate] = result;
 
   return {
     reviews: reviews.map((r) => ({

@@ -6,6 +6,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { AuthModalProvider } from "@/components/auth/AuthModalProvider";
 import { PageLoadTransition } from "@/components/ui/PageLoadTransition";
 import { prisma } from "@/lib/prisma";
+import { safeQuery } from "@/lib/safe-query";
 import { buildLocationJsonLd } from "@/lib/seo/local-business";
 import { toPublicLocation } from "@/lib/locations";
 import "./globals.css";
@@ -46,7 +47,14 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
-  const activeLocations = await prisma.location.findMany({ where: { isActive: true }, orderBy: { name: "asc" } });
+  // Falls back to an empty list rather than a hardcoded branch list: stale
+  // phone numbers rendered as fact are worse than a footer that simply omits
+  // the block until the database is back.
+  const activeLocations = await safeQuery(
+    "layout:locations",
+    () => prisma.location.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
+    [],
+  );
   const locationJsonLds = activeLocations.map((location) => buildLocationJsonLd(location, siteUrl));
   const footerLocations = activeLocations.map(toPublicLocation);
 
