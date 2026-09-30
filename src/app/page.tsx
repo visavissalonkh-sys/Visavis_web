@@ -1,18 +1,8 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { prisma } from "@/lib/prisma";
-import { categories } from "@/lib/data/services";
-import { getPublicLocations } from "@/lib/locations";
-import { safeQuery } from "@/lib/safe-query";
-import { Hero } from "@/components/sections/hero";
-import { CategoriesStrip } from "@/components/sections/categories-strip";
-import { FeaturedMasters } from "@/components/sections/featured-masters";
-import { StatsAccent } from "@/components/sections/stats-accent";
-import { LocationsStrip } from "@/components/sections/locations-strip";
-import { Testimonials } from "@/components/sections/testimonials";
-import { CtaBanner } from "@/components/sections/cta-banner";
+import { HomePage } from "@/components/home/HomePage";
 
-// Not SSG — see /masters/[slug]/page.tsx for why.
+// Not SSG — the layout above still reads locations for the shared JSON-LD.
 export const dynamic = "force-dynamic";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://visavis.example";
@@ -95,42 +85,6 @@ export default async function Home() {
     })),
   };
 
-  const locations = await getPublicLocations();
-  const activeMasterCount = await safeQuery(
-    "home:activeMasterCount",
-    () => prisma.master.count({ where: { isActive: true } }),
-    0,
-  );
-
-  const masters = await safeQuery(
-    "home:featuredMasters",
-    () =>
-      prisma.master.findMany({
-        where: { isActive: true },
-        include: {
-          specialties: { include: { service: true } },
-          _count: { select: { reviews: { where: { isPublished: true } } } },
-        },
-        orderBy: { ratingCached: "desc" },
-        take: 4,
-      }),
-    [],
-  );
-
-  const featuredMasters = masters.map((master) => {
-    const specialtySlugs = [...new Set(master.specialties.map((s) => s.service.category))];
-    const specialtyNames = categories.filter((c) => specialtySlugs.includes(c.slug)).map((c) => c.name);
-    return {
-      slug: master.slug,
-      name: master.name,
-      bio: master.bio,
-      avatarUrl: master.avatarUrl,
-      rating: Number(master.ratingCached),
-      reviewCount: master._count.reviews,
-      specialtyNames,
-    };
-  });
-
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
@@ -140,17 +94,7 @@ export default async function Home() {
         nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
-      <Hero />
-      <CategoriesStrip />
-      <div className="section-divider-to-cream" aria-hidden />
-      <FeaturedMasters masters={featuredMasters} />
-      <div className="section-divider-to-dark" aria-hidden />
-      <StatsAccent masterCount={activeMasterCount} locationCount={locations.length} />
-      <div className="section-divider-to-cream" aria-hidden />
-      <Testimonials />
-      <div className="section-divider-to-dark" aria-hidden />
-      <LocationsStrip locations={locations} />
-      <CtaBanner />
+      <HomePage />
     </>
   );
 }
